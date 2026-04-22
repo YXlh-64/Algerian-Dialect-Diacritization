@@ -43,7 +43,6 @@ algerian-diacritization/
 ├── README.md                # Main project description, research scope, and workflow
 ├── .gitignore               # Rules to exclude data, models, secrets, and artifacts
 ├── configs/                 # Planned experiment configuration files (one per strategy)
-├── data/                    # Data interface docs only (no dataset files in repo)
 ├── models/                  # Planned model implementations and architecture modules
 ├── training/                # Planned training entry points and training orchestration
 ├── evaluation/              # Planned evaluation scripts and metric computations
@@ -58,6 +57,9 @@ This project uses a four-tool workflow:
 - **Google Drive**: dataset storage, controlled sharing, and data access coordination.
 - **W&B (Weights & Biases)**: experiment tracking, metric visualization, and run comparison.
 - **Discord**: team communication, supervision updates, and experiment coordination.
+
+## Important Note:
+The data should be accessed externally from Google Drive API only, don't keep track of the dataset in this repository
 
 ## Installation (Placeholder)
 Environment setup instructions and dependency definitions (including requirements.txt) will be added once implementation begins.
