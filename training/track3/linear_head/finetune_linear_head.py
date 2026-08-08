@@ -68,6 +68,17 @@ from torch.utils.data import Dataset, DataLoader
 from transformers import AutoTokenizer, AutoModel, get_linear_schedule_with_warmup
 from sklearn.metrics import f1_score, precision_recall_fscore_support, confusion_matrix, classification_report
 
+# --- Repo-root cross-module imports (see models/track3/linear_head/ and
+#     evaluation/track3/linear_head/ -- split_notebook.py routed the Model
+#     and Evaluator class definitions there, but never added the import
+#     lines back into this file). Repo root is 3 levels up from this file:
+#     training/track3/linear_head/<this file>.
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+from models.track3.linear_head.linear_head_model import Track3Diacritizer
+from evaluation.track3.linear_head.evaluate_linear_head import Evaluator, print_eval_report
+
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 print("Device:", DEVICE)
 if DEVICE == "cuda":
@@ -1077,6 +1088,77 @@ if CFG.k_folds > 1:
           f"{PATHS.checkpoint_dir}/{RUN_ID}_fold*/")
 else:
     print("CFG.k_folds == 1 -> skipping k-fold section, using Section 8's single model.")
+
+
+# ## 9. Final Local Evaluation on `DEV_TEST`
+# (Moved back here from evaluation/track3/linear_head/evaluate_linear_head.py.
+#  split_notebook.py routed this entire header to evaluation/ because the text
+#  matched "evaluat", but everything below is this run's own pipeline state
+#  -- fold-model loading, DEV_TEST_REPORT, DEV_TEST_SCORE, evaluator -- which
+#  Sections 10-13 all depend on. Only the reusable Evaluator CLASS and
+#  print_eval_report() actually belong in evaluation/; those stayed there
+#  and are imported below.)
+
+def build_fresh_model() -> Track3Diacritizer:
+    return Track3Diacritizer(
+        BACKBONE_NAME, len(CHAR2ID), CFG.num_classes, CFG.char_emb_dim,
+        n_concat_layers=CFG.n_concat_layers, head_hidden_dim=CFG.head_hidden_dim,
+        head_dropout=CFG.head_dropout, use_deep_head=CFG.use_deep_head,
+    ).to(DEVICE)
+
+
+if CFG.k_folds > 1 and FOLD_CHECKPOINT_DIRS:
+    MODELS_FOR_INFERENCE = []
+    for fold_dir in FOLD_CHECKPOINT_DIRS:
+        fm = build_fresh_model()
+        fold_ckpt = CheckpointManager(fold_dir)
+        fold_ckpt.load_best(fm)
+        fold_ckpt.free_latest()   # weights are safely loaded now -- drop the
+                                   # full (model+optimizer+scheduler) latest.pt
+                                   # before self-training starts writing more
+        MODELS_FOR_INFERENCE.append(fm)
+    print(f"Loaded {len(MODELS_FOR_INFERENCE)} fold models for ensemble evaluation.")
+    report_disk_usage()
+else:
+    ckpt.load_best(model)   # best checkpoint by dev micro-F1, from Section 8
+    ckpt.free_latest()
+    MODELS_FOR_INFERENCE = [model]
+
+
+@torch.no_grad()
+def _predict_chars(models: List[nn.Module], chars: List[str]) -> List[int]:
+    '''Ensembled argmax prediction per character for one sentence. Defined
+    here (before the first evaluate() call) so it is available both for this
+    DEV_TEST evaluation and for the self-training section further down.'''
+    if not chars:
+        return []
+    enc = aligner.encode(chars)
+    input_ids = torch.tensor([enc["input_ids"]], device=DEVICE)
+    attn = torch.ones_like(input_ids)
+    toks = torch.tensor([[t if t >= 0 else 0 for t in enc["token_idx_per_char"][:len(chars)]]],
+                         device=DEVICE)
+    char_ids = torch.tensor([[CHAR2ID.get(c, CHAR2ID.get('<UNK>', 1)) for c in chars]], device=DEVICE)
+    probs_sum = None
+    for m in models:
+        logits = m(input_ids, attn, char_ids, toks)[0]
+        probs = torch.softmax(logits, dim=-1)
+        probs_sum = probs if probs_sum is None else probs_sum + probs
+    return (probs_sum / len(models)).argmax(-1).cpu().tolist()
+
+
+dev_test_ds = DiacritizationDataset(dev_test_records, aligner, CHAR2ID)
+dev_test_loader = DataLoader(dev_test_ds, batch_size=CFG.eval_batch_size, shuffle=False, collate_fn=_collate)
+
+evaluator = Evaluator(CLASS_NAMES)
+DEV_TEST_REPORT = evaluator.evaluate(
+    MODELS_FOR_INFERENCE, dev_test_loader,
+    predict_fn=lambda chars: _predict_chars(MODELS_FOR_INFERENCE, chars),
+    word_metric_records=dev_test_records,
+)
+DEV_TEST_SCORE = DEV_TEST_REPORT["micro_f1"]
+
+print_eval_report(DEV_TEST_REPORT, CLASS_NAMES, name="DEV_TEST")
+evaluator.plot_confusion(DEV_TEST_REPORT["confusion_matrix"])
 
 
 # ## 10. Self-Training on Unlabeled `KAGGLE_TEST` Sentences (optional)

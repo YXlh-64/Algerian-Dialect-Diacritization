@@ -24,6 +24,89 @@ from sklearn.metrics import f1_score, precision_recall_fscore_support, confusion
 from collections import defaultdict, Counter
 import subprocess
 
+# Recomputed/duplicated independently rather than imported from training/ --
+# avoids a training<->evaluation circular import. Evaluator.evaluate() below
+# needs these in THIS module's namespace, since Python resolves a method's
+# free variables against the module it's defined in, not the caller's
+# globals. DEVICE and IGNORE_INDEX are deterministic, so duplication is
+# safe; word_level_metrics_from_predict_fn is duplicated verbatim from
+# training/track3/linear_head/finetune_linear_head.py (Section 5) -- it's
+# pure (only touches SPACE_CHAR + stdlib), so both copies always agree.
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+IGNORE_INDEX = -100
+SPACE_CHAR = " "
+
+
+def word_level_metrics_from_predict_fn(predict_fn, records: List[dict]) -> Dict[str, Any]:
+    '''Word-level DER/WER plus sentence exact-match, per-class DER (char
+    error rate per diacritic class), and the most common (true, predicted)
+    confusion pairs -- for a richer error analysis than DER/WER alone.'''
+    total_chars = char_errors = 0
+    total_chars_star = char_errors_star = 0
+    total_words = word_errors = 0
+    total_words_star = word_errors_star = 0
+    n_sent = n_sent_exact = 0
+    class_total: Dict[int, int] = defaultdict(int)
+    class_errors: Dict[int, int] = defaultdict(int)
+    confusion_pairs: Counter = Counter()
+
+    for rec in records:
+        chars, labels = rec["chars"], rec["labels"]
+        preds = predict_fn(chars)
+
+        n_sent += 1
+        sent_ok = True
+        words, cur = [], []
+        for i, c in enumerate(chars):
+            if c == SPACE_CHAR:
+                if cur:
+                    words.append(cur)
+                cur = []
+                continue
+            t, p = labels[i], preds[i]
+            cur.append((p, t))
+            class_total[t] += 1
+            if p != t:
+                class_errors[t] += 1
+                confusion_pairs[(t, p)] += 1
+                sent_ok = False
+        if cur:
+            words.append(cur)
+        if sent_ok:
+            n_sent_exact += 1
+
+        for word in words:
+            if not word:
+                continue
+            n = len(word)
+            errs = [p != t for p, t in word]
+
+            total_chars += n
+            char_errors += sum(errs)
+            total_words += 1
+            word_errors += int(any(errs))
+
+            if n > 1:
+                total_chars_star += n - 1
+                char_errors_star += sum(errs[:-1])
+                total_words_star += 1
+                word_errors_star += int(any(errs[:-1]))
+
+    per_class_der = {c: class_errors[c] / class_total[c]
+                      for c in class_total if class_total[c] > 0}
+
+    return {
+        "DER": char_errors / max(total_chars, 1),
+        "DER_star": char_errors_star / max(total_chars_star, 1),
+        "WER": word_errors / max(total_words, 1),
+        "WER_star": word_errors_star / max(total_words_star, 1),
+        "sentence_exact_match": n_sent_exact / max(n_sent, 1),
+        "per_class_der": per_class_der,
+        "top_confusions": confusion_pairs.most_common(15),
+        "n_chars": total_chars, "n_words": total_words, "n_sentences": n_sent,
+    }
+
+
 # ## 9. Final Local Evaluation on `DEV_TEST`
 class Evaluator:
     def __init__(self, class_names: List[str]):
@@ -115,63 +198,4 @@ def print_eval_report(report: Dict[str, Any], class_names: List[str], name: str 
     print()
 
 
-def build_fresh_model() -> Track3Diacritizer:
-    return Track3Diacritizer(
-        BACKBONE_NAME, len(CHAR2ID), CFG.num_classes, CFG.char_emb_dim,
-        n_concat_layers=CFG.n_concat_layers, head_hidden_dim=CFG.head_hidden_dim,
-        head_dropout=CFG.head_dropout, use_deep_head=CFG.use_deep_head,
-    ).to(DEVICE)
 
-
-if CFG.k_folds > 1 and FOLD_CHECKPOINT_DIRS:
-    MODELS_FOR_INFERENCE = []
-    for fold_dir in FOLD_CHECKPOINT_DIRS:
-        fm = build_fresh_model()
-        fold_ckpt = CheckpointManager(fold_dir)
-        fold_ckpt.load_best(fm)
-        fold_ckpt.free_latest()   # weights are safely loaded now -- drop the
-                                   # full (model+optimizer+scheduler) latest.pt
-                                   # before self-training starts writing more
-        MODELS_FOR_INFERENCE.append(fm)
-    print(f"Loaded {len(MODELS_FOR_INFERENCE)} fold models for ensemble evaluation.")
-    report_disk_usage()
-else:
-    ckpt.load_best(model)   # best checkpoint by dev micro-F1, from Section 8
-    ckpt.free_latest()
-    MODELS_FOR_INFERENCE = [model]
-
-
-@torch.no_grad()
-def _predict_chars(models: List[nn.Module], chars: List[str]) -> List[int]:
-    '''Ensembled argmax prediction per character for one sentence. Defined
-    here (before the first evaluate() call) so it is available both for this
-    DEV_TEST evaluation and for the self-training section further down.'''
-    if not chars:
-        return []
-    enc = aligner.encode(chars)
-    input_ids = torch.tensor([enc["input_ids"]], device=DEVICE)
-    attn = torch.ones_like(input_ids)
-    toks = torch.tensor([[t if t >= 0 else 0 for t in enc["token_idx_per_char"][:len(chars)]]],
-                         device=DEVICE)
-    char_ids = torch.tensor([[CHAR2ID.get(c, CHAR2ID.get('<UNK>', 1)) for c in chars]], device=DEVICE)
-    probs_sum = None
-    for m in models:
-        logits = m(input_ids, attn, char_ids, toks)[0]
-        probs = torch.softmax(logits, dim=-1)
-        probs_sum = probs if probs_sum is None else probs_sum + probs
-    return (probs_sum / len(models)).argmax(-1).cpu().tolist()
-
-
-dev_test_ds = DiacritizationDataset(dev_test_records, aligner, CHAR2ID)
-dev_test_loader = DataLoader(dev_test_ds, batch_size=CFG.eval_batch_size, shuffle=False, collate_fn=_collate)
-
-evaluator = Evaluator(CLASS_NAMES)
-DEV_TEST_REPORT = evaluator.evaluate(
-    MODELS_FOR_INFERENCE, dev_test_loader,
-    predict_fn=lambda chars: _predict_chars(MODELS_FOR_INFERENCE, chars),
-    word_metric_records=dev_test_records,
-)
-DEV_TEST_SCORE = DEV_TEST_REPORT["micro_f1"]
-
-print_eval_report(DEV_TEST_REPORT, CLASS_NAMES, name="DEV_TEST")
-evaluator.plot_confusion(DEV_TEST_REPORT["confusion_matrix"])

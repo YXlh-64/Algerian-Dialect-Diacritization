@@ -43,6 +43,17 @@ from torch.utils.data import Dataset, DataLoader
 from transformers import AutoTokenizer, AutoModel, get_linear_schedule_with_warmup
 from sklearn.metrics import f1_score, precision_recall_fscore_support, confusion_matrix, classification_report
 
+# --- Repo-root cross-module imports (see models/track3/bilstm_crf_head/ and
+#     evaluation/track3/bilstm_crf_head/ -- split_notebook.py routed the
+#     Model and Evaluator class definitions there, but never added the
+#     import lines back into this file). Repo root is 3 levels up from this
+#     file: training/track3/bilstm_crf_head/<this file>.
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+from models.track3.bilstm_crf_head.bilstm_crf_head_model import Track3BiLSTMCRF, majority_vote_decode
+from evaluation.track3.bilstm_crf_head.evaluate_bilstm_crf_head import Evaluator
+
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 print("Device:", DEVICE)
 if DEVICE == "cuda":
@@ -1087,6 +1098,66 @@ if CFG.k_folds > 1:
           f"{PATHS.checkpoint_dir}/{RUN_ID}_fold*/")
 else:
     print("CFG.k_folds == 1 -> skipping k-fold section, using Section 8's single model.")
+
+
+# ## 9. Final Local Evaluation on `DEV_TEST`
+# (Moved back here from evaluation/track3/bilstm_crf_head/evaluate_bilstm_crf_head.py.
+#  split_notebook.py routed this entire header to evaluation/ because the text
+#  matched "evaluat", but everything below is this run's own pipeline state
+#  -- fold-model loading, DEV_TEST_REPORT, DEV_TEST_SCORE, evaluator -- which
+#  Section 10-13 all depend on. Only the reusable Evaluator CLASS actually
+#  belongs in evaluation/; that part stayed there and is imported below.)
+
+if CFG.k_folds > 1 and FOLD_CHECKPOINT_DIRS:
+    MODELS_FOR_INFERENCE = []
+    for fold_dir in FOLD_CHECKPOINT_DIRS:
+        fm = build_model(CFG, class_weights)
+        CheckpointManager(fold_dir).load_best(fm)
+        MODELS_FOR_INFERENCE.append(fm)
+    print(f"Loaded {len(MODELS_FOR_INFERENCE)} fold models for ensemble evaluation.")
+else:
+    ckpt.load_best(model)   # best checkpoint by dev accuracy, from Section 8
+    MODELS_FOR_INFERENCE = [model]
+
+dev_test_ds = DiacritizationDataset(dev_test_records, aligner, CHAR2ID, CFG.space_label)
+dev_test_loader = DataLoader(dev_test_ds, batch_size=CFG.eval_batch_size, shuffle=False, collate_fn=_collate)
+
+evaluator = Evaluator(CLASS_NAMES, CFG.space_label)
+DEV_TEST_REPORT = evaluator.evaluate(MODELS_FOR_INFERENCE, dev_test_loader)
+DEV_TEST_SCORE = DEV_TEST_REPORT["micro_f1"]
+print(f"DEV_TEST micro-F1 (Kaggle-score proxy): {DEV_TEST_SCORE:.4f}  "
+      f"(ensembling {DEV_TEST_REPORT['n_models_ensembled']} model(s))")
+print(f"DEV_TEST macro-F1: {DEV_TEST_REPORT['macro_f1']:.4f}")
+evaluator.plot_confusion(DEV_TEST_REPORT["confusion_matrix"])
+
+
+@torch.no_grad()
+def _predict_chars(models: List[nn.Module], chars: List[str]) -> List[int]:
+    '''Single-sentence prediction used by DER/WER and self-training
+    pseudo-labeling. Majority-votes across models exactly as Evaluator does
+    for batches.'''
+    if not chars:
+        return []
+    n = len(chars)
+    enc = aligner.encode(chars)
+    input_ids = torch.tensor([enc["input_ids"]], device=DEVICE)
+    attn = torch.ones_like(input_ids)
+    toks = torch.tensor([[t if t >= 0 else 0 for t in enc["token_idx_per_char"][:n]]], device=DEVICE)
+    char_ids = torch.tensor([[CHAR2ID.get(c, CHAR2ID.get('<UNK>', 1)) for c in chars]], device=DEVICE)
+    wf = torch.tensor([compute_is_word_final(chars)], device=DEVICE)
+    mask = torch.ones((1, n), dtype=torch.bool, device=DEVICE)
+    decoded = majority_vote_decode(models, input_ids, attn, char_ids, toks, wf, mask)
+    return decoded[0]
+
+WORD_METRICS = word_level_metrics_from_predict_fn(
+    lambda chars: _predict_chars(MODELS_FOR_INFERENCE, chars), dev_test_records)
+DEV_TEST_REPORT.update(WORD_METRICS)
+
+print(f"DER       : {WORD_METRICS['DER']:.4f}   (sanity check, should ~= 1 - micro_f1 = "
+      f"{1 - DEV_TEST_SCORE:.4f})")
+print(f"DER*      : {WORD_METRICS['DER_star']:.4f}   (excluding each word's last letter)")
+print(f"WER       : {WORD_METRICS['WER']:.4f}   (fraction of words with >=1 wrong letter)")
+print(f"WER*      : {WORD_METRICS['WER_star']:.4f}   (excluding each word's last letter)")
 
 
 # ## 10. Self-Training on Unlabeled `KAGGLE_TEST` Sentences (optional)
