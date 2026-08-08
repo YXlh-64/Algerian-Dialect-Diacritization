@@ -1,0 +1,2 @@
+folder_name,strategy,model_slug,track,head_type,public_score,private_score
+EXAMPLE_ONLY/your-raw-folder-name,strategy_a,your_model_slug,track1,some_head_type,0.0000,0.0000

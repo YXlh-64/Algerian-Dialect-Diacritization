@@ -1,0 +1,45 @@
+# Data files and data directories
+*.txt
+*.tsv
+*.csv
+*.json
+*.jsonl
+data/
+
+# Model checkpoints and saved weights
+*.pt
+*.bin
+*.safetensors
+*.ckpt
+checkpoints/
+
+# Weights & Biases artifacts
+wandb/
+
+# Python build and cache artifacts
+__pycache__/
+*.pyc
+*.pyo
+.eggs/
+*.egg-info/
+dist/
+build/
+
+# Environment and secrets
+.env
+*.env
+*credentials*
+*api_key*
+secrets/
+
+# Jupyter artifacts
+.ipynb_checkpoints/
+*.ipynb
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+
+# IDE/editor artifacts
+.vscode/
+.idea/
