@@ -69,5 +69,5 @@ Command-line usage instructions for running each strategy and model will be adde
 
 ## Team and Acknowledgments
 - **Institution**: ENSIA Research Team
-- **Supervisors**: Dr. Mohamed Brahimi, Manel Ait Said, Dr. Mohamed Hadj Ameur, Dr. ElMoatez Billah Nagoudi
-- **Contributors**: Aya Benali Khodja, Mazouz Ahmed Thabet, Guergour Youcef, Zyad Kherraf, Hadil Hattabi, Omar Ziyad Chaalel, Khadidja Bahfir, Selma Khelili, Younes Barmaki, Roumaissa Smail, Aya Benmansour, Souha Nour Abidat, Ines Bencherif, Basmala Randa Benmaiche, Lyes Hadjar, Yousra Kassous, Zahra Abdeli, Fatma Imene Djelili, Takoua Hidoussi, Soundous Chemam
+- **Supervisors**:  Dr. Mohamed Hadj Ameur, Dr. Mohamed Brahimi, Dr. ElMoatez Billah Nagoudi
+- **Contributors**: Aya Benali Khodja, Selma Khelili, Lyes Hadjar, Soundous Chemam, Manel Ait Said, Mazouz Ahmed Thabet, Zyad Kherraf, Hadil Hattabi, Omar Ziyad Chaalel, Khadidja Bahfir, Younes Barmaki, Guergour Youcef, Roumaissa Smail, Aya Benmansour, Souha Nour Abidat, Ines Bencherif, Basmala Randa Benmaiche, Yousra Kassous, Zahra Abdeli, Fatma Imene Djelili, Takoua Hidoussi
