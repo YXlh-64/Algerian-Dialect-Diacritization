@@ -1,8 +1,10 @@
-# Shared evaluate.py for track3/bilstm_crf_head (5 of 6 experiments — auto-consolidated, identical after stripping header/noise). Excluded (differ for real reasons): camelbert_da_09483
+# Auto-split from Raw Experiments/Bilstm head/camelbert_da-0.9483/camelbert-da-crf (1).ipynb for camelbert_da_09483 (track3/bilstm_crf_head)
+# NOTE: shared imports/setup live in training/track3/bilstm_crf_head/camelbert_da_09483_train.py
+# Sanity-check imports here before relying on this file standalone.
 
 # --- Imports (copied from the notebook's preamble so this file has its
 #     basic dependencies resolved; full setup still lives in training/) ---
-import os, sys, json, re, glob, random, shutil, time, zipfile, unicodedata, copy
+import os, sys, json, re, glob, random, shutil, time, zipfile, unicodedata
 import warnings
 from pathlib import Path
 from dataclasses import dataclass, field, asdict
@@ -119,3 +121,5 @@ print(f"DER       : {WORD_METRICS['DER']:.4f}   (sanity check, should ~= 1 - mic
 print(f"DER*      : {WORD_METRICS['DER_star']:.4f}   (excluding each word's last letter)")
 print(f"WER       : {WORD_METRICS['WER']:.4f}   (fraction of words with >=1 wrong letter)")
 print(f"WER*      : {WORD_METRICS['WER_star']:.4f}   (excluding each word's last letter)")
+
+

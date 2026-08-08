@@ -1,4 +1,4 @@
-run_id: marbert
+run_id: marbert_09498
 backbone: UBC-NLP/MARBERT
 num_classes: 16
 space_label: 16
@@ -48,3 +48,4 @@ self_training_conf_threshold: 0.9
 self_training_epochs: 4
 k_folds: 5
 export_include_weights: true
+model_registry_key: marbert
