@@ -1,5 +1,29 @@
 # Shared evaluate.py for track3/linear_head (6 of 6 experiments — auto-consolidated, identical after stripping header/noise). Excluded (differ for real reasons): none
 
+# --- Imports (copied from the notebook's preamble so this file has its
+#     basic dependencies resolved; full setup still lives in training/) ---
+import os, sys, json, re, glob, random, shutil, time, zipfile, unicodedata
+import warnings
+from pathlib import Path
+from dataclasses import dataclass, field, asdict
+from typing import Optional, List, Dict, Tuple, Any
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import torch
+import sympy
+import sympy.printing  # noqa: F401  -- registers sympy.printing before torch needs it
+import transformers
+import importlib
+import sympy.printing  # noqa: F401
+import sklearn
+import torch.nn as nn
+from torch.utils.data import Dataset, DataLoader
+from transformers import AutoTokenizer, AutoModel, get_linear_schedule_with_warmup
+from sklearn.metrics import f1_score, precision_recall_fscore_support, confusion_matrix, classification_report
+from collections import defaultdict, Counter
+import subprocess
+
 # ## 9. Final Local Evaluation on `DEV_TEST`
 class Evaluator:
     def __init__(self, class_names: List[str]):

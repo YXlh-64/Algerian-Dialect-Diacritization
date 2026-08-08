@@ -2,13 +2,12 @@
 
 **Track:** track3 | **Head:** bilstm_crf_head | **Strategy:** strategy_a
 
-- Micro-F1 (local dev/test): **0.9470**
-- Macro-F1 (local dev/test): **0.8671**
-- Characters evaluated: 3228
-- Kaggle public score: **0.94597**
-- Kaggle private score: **0.95218**
+- **DER (Diacritic Error Rate): 0.0530**  (= 1 - micro-F1; micro-F1 = 0.9470)
+- Macro-F1, all 16 classes (matches table below): **0.4878**
+- Macro-F1, classes with support only (excludes 0-support classes, NOT comparable to the line above): **0.8671**
+- Characters evaluated (validation set): 3228
 
-## Per-class metrics
+## Per-class metrics (validation set)
 
 | Class | Precision | Recall | F1-score | Support |
 |---|---|---|---|---|

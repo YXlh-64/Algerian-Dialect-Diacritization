@@ -1,4 +1,4 @@
-run_id: alclam
+run_id: alclam_08959
 backbone: rahbi/alclam-base-v2
 num_classes: 16
 char_emb_dim: 64
@@ -41,3 +41,4 @@ self_training_conf_threshold: 0.9
 self_training_epochs: 4
 k_folds: 5
 export_include_weights: true
+model_registry_key: alclam

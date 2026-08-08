@@ -1,8 +1,10 @@
-# Shared model.py for track3/bilstm_crf_head (5 of 6 experiments — auto-consolidated, identical after stripping header/noise). Excluded (differ for real reasons): camelbert_da_09483
+# Auto-split from Raw Experiments/Bilstm head/camelbert_da-0.9483/camelbert-da-crf (1).ipynb for camelbert_da_09483 (track3/bilstm_crf_head)
+# NOTE: shared imports/setup live in training/track3/bilstm_crf_head/camelbert_da_09483_train.py
+# Sanity-check imports here before relying on this file standalone.
 
 # --- Imports (copied from the notebook's preamble so this file has its
 #     basic dependencies resolved; full setup still lives in training/) ---
-import os, sys, json, re, glob, random, shutil, time, zipfile, unicodedata, copy
+import os, sys, json, re, glob, random, shutil, time, zipfile, unicodedata
 import warnings
 from pathlib import Path
 from dataclasses import dataclass, field, asdict
@@ -236,3 +238,5 @@ def majority_vote_decode(models: List[nn.Module], input_ids, attention_mask, cha
             seq.append(int(vals[np.argmax(counts)]))  # ties -> lowest class id, deterministic
         voted.append(seq)
     return voted
+
+

@@ -2,13 +2,12 @@
 
 **Track:** track3 | **Head:** linear_head | **Strategy:** strategy_a
 
-- Micro-F1 (local dev/test): **0.9027**
-- Macro-F1 (local dev/test): **nan**
-- Characters evaluated: 3228
-- Kaggle public score: **0.90582**
-- Kaggle private score: **0.91373**
+- **DER (Diacritic Error Rate): 0.0973**  (= 1 - micro-F1; micro-F1 = 0.9027)
+- Macro-F1, all 16 classes (matches table below): **0.4666**
+- Macro-F1, classes with support only, 9 classes (excludes 0-support classes, NOT comparable to the line above): **0.8295**
+- Characters evaluated (validation set): 3228
 
-## Per-class metrics
+## Per-class metrics (validation set)
 
 | Class | Precision | Recall | F1-score | Support |
 |---|---|---|---|---|

@@ -1,6 +1,6 @@
 # Shared fine-tuning script for 5 of 6 track3/bilstm_crf_head experiments (auto-consolidated -- identical except ACTIVE_MODEL; a broken '!pip install kaggle' cell present in some copies was dropped).
 # Excluded from this shared script (differ for real reasons, kept as their own file): camelbert_da_09483
-# Defaults to --active-model arabert_v02, the best-scoring run in this group (0.95413 private F1). Override with --active-model <key>.
+# Defaults to --active-model arabert_v02, the best-scoring run in this group (DER 0.0483). Override with --active-model <key>.
 
 # --- Environment & setup (preamble cells before first ## section) ---
 
@@ -142,7 +142,7 @@ import argparse
 _parser = argparse.ArgumentParser()
 _parser.add_argument("--active-model", type=str, default="arabert_v02",
                       choices=list(MODEL_REGISTRY.keys()),
-                      help="Key into MODEL_REGISTRY (default: arabert_v02, the best-scoring run in this group at 0.95413 private F1)")
+                      help="Key into MODEL_REGISTRY (default: arabert_v02, the best-scoring run in this group at DER 0.0483)")
 _args, _ = _parser.parse_known_args()
 ACTIVE_MODEL: str = _args.active_model
 assert ACTIVE_MODEL in MODEL_REGISTRY, f"{ACTIVE_MODEL} not in MODEL_REGISTRY"
@@ -837,6 +837,177 @@ class CheckpointManager:
         state = torch.load(self.best_path, map_location=DEVICE, weights_only=False)
         model.load_state_dict(state["model"])
         return state
+
+# ## 8. Train `ACTIVE_MODEL`
+
+tokenizer = AutoTokenizer.from_pretrained(BACKBONE_NAME, use_fast=True)
+aligner = CharAligner(tokenizer, CFG.max_subword_len)
+
+train_ds = DiacritizationDataset(train_records, aligner, CHAR2ID, CFG.space_label)
+dev_ds = DiacritizationDataset(dev_records, aligner, CHAR2ID, CFG.space_label)
+
+_collate = lambda b: collate_fn(b, tokenizer.pad_token_id or 0)
+train_loader = DataLoader(train_ds, batch_size=CFG.batch_size, shuffle=True, collate_fn=_collate)
+dev_loader = DataLoader(dev_ds, batch_size=CFG.eval_batch_size, shuffle=False, collate_fn=_collate)
+
+class_weights = compute_class_weights(train_records, CFG, DEVICE)
+print("Auxiliary-loss class weights:", class_weights.tolist())
+
+
+
+def _to_device(batch):
+    return {k: (v.to(DEVICE) if torch.is_tensor(v) else v) for k, v in batch.items()}
+
+
+def masked_accuracy_from_emissions(emissions, labels, char_mask, space_label) -> float:
+    '''Fast approximate accuracy from raw emissions (no Viterbi decode) --
+    used as the per-batch training-progress signal only.'''
+    preds = emissions.argmax(-1)
+    valid = char_mask & (labels != space_label)
+    if valid.sum() == 0:
+        return 0.0
+    return (preds[valid] == labels[valid]).float().mean().item()
+
+
+def build_model(cfg: TrainConfig, class_weights: torch.Tensor) -> "Track3BiLSTMCRF":
+    return Track3BiLSTMCRF(
+        cfg.backbone, len(CHAR2ID), cfg.num_labels, char_emb_dim=cfg.char_emb_dim,
+        n_pool_layers=cfg.n_pool_layers, lstm_hidden_dim=cfg.lstm_hidden_dim,
+        num_lstm_layers=cfg.num_lstm_layers, dropout=cfg.head_dropout, use_crf=cfg.use_crf,
+        aux_loss_weight=cfg.aux_loss_weight, class_weights=class_weights,
+        freeze_embeddings=cfg.freeze_embeddings, freeze_n_layers=cfg.freeze_n_layers,
+    ).to(DEVICE)
+
+
+def run_train_epoch(model, loader, optimizer, scheduler, cfg, ckpt, epoch, global_step):
+    model.train()
+    epoch_loss, epoch_acc, n_batches = 0.0, 0.0, 0
+    t0 = time.time()
+    for batch in loader:
+        batch = _to_device(batch)
+        loss1, emissions1 = model(batch["input_ids"], batch["attention_mask"], batch["char_ids"],
+                                   batch["token_idx_per_char"], batch["is_word_final"],
+                                   batch["char_mask"], labels=batch["labels"])
+        loss1 = loss1.mean()
+
+        if cfg.use_rdrop:
+            loss2, emissions2 = model(batch["input_ids"], batch["attention_mask"], batch["char_ids"],
+                                       batch["token_idx_per_char"], batch["is_word_final"],
+                                       batch["char_mask"], labels=batch["labels"])
+            loss2 = loss2.mean()
+            kl = rdrop_kl(emissions1, emissions2, batch["char_mask"])
+            loss = (loss1 + loss2) / 2 + cfg.rdrop_alpha * kl
+        else:
+            loss = loss1
+
+        optimizer.zero_grad()
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), cfg.grad_clip)
+        optimizer.step()
+        scheduler.step()
+
+        global_step += 1
+        epoch_loss += loss.item()
+        epoch_acc += masked_accuracy_from_emissions(emissions1.detach(), batch["labels"],
+                                                      batch["char_mask"], cfg.space_label)
+        n_batches += 1
+
+        if global_step % cfg.checkpoint_every_steps == 0:
+            ckpt.save(model, optimizer, scheduler, epoch, global_step, best_dev_score=-1.0)
+
+        if (time.time() - t0) / 60 > cfg.max_train_minutes:
+            print("Time budget reached mid-epoch; checkpointing and stopping.")
+            ckpt.save(model, optimizer, scheduler, epoch, global_step, best_dev_score=-1.0)
+            return epoch_loss / n_batches, epoch_acc / n_batches, global_step, True
+
+    return epoch_loss / n_batches, epoch_acc / n_batches, global_step, False
+
+
+@torch.no_grad()
+def run_eval(model, loader, cfg):
+    '''Returns (avg_loss, decode_accuracy). Decode accuracy uses the model's
+    real inference path (CRF Viterbi or argmax decode), not the fast
+    emissions-argmax approximation used mid-training -- so this number is
+    what checkpoint selection and early stopping actually optimize for.'''
+    model.eval()
+    total_loss, n_batches = 0.0, 0
+    y_true, y_pred = [], []
+    for batch in loader:
+        batch_gpu = _to_device(batch)
+        loss, _ = model(batch_gpu["input_ids"], batch_gpu["attention_mask"], batch_gpu["char_ids"],
+                         batch_gpu["token_idx_per_char"], batch_gpu["is_word_final"],
+                         batch_gpu["char_mask"], labels=batch_gpu["labels"])
+        total_loss += loss.mean().item(); n_batches += 1
+
+        decoded = model(batch_gpu["input_ids"], batch_gpu["attention_mask"], batch_gpu["char_ids"],
+                         batch_gpu["token_idx_per_char"], batch_gpu["is_word_final"],
+                         batch_gpu["char_mask"], labels=None)
+        labels_cpu = batch["labels"]
+        for i, seq in enumerate(decoded):
+            true_seq = labels_cpu[i, :len(seq)].tolist()
+            for t, p in zip(true_seq, seq):
+                if t != cfg.space_label:
+                    y_true.append(t); y_pred.append(p)
+
+    acc = float(np.mean([t == p for t, p in zip(y_true, y_pred)])) if y_true else 0.0
+    return total_loss / n_batches, acc
+
+
+
+if CFG.k_folds == 1:
+    model = build_model(CFG, class_weights)
+    optimizer = build_layerwise_optimizer(model, CFG)
+    total_steps = len(train_loader) * CFG.epochs
+    scheduler = get_linear_schedule_with_warmup(
+        optimizer, num_warmup_steps=int(CFG.warmup_ratio * total_steps), num_training_steps=total_steps)
+    ckpt = CheckpointManager(PATHS.checkpoint_dir / RUN_ID)
+
+    state = ckpt.load_latest(model, optimizer, scheduler)
+    start_epoch, global_step, best_dev_score = state["epoch"], state["global_step"], state["best_dev_score"]
+    print(f"Starting from epoch {start_epoch}, global_step {global_step}, best_dev_score {best_dev_score:.4f}")
+
+    patience_counter = 0
+    best_dev_loss = float("inf")
+    stopped_for_time = False
+
+    for epoch in range(start_epoch, CFG.epochs):
+        train_loss, train_acc, global_step, stopped_for_time = run_train_epoch(
+            model, train_loader, optimizer, scheduler, CFG, ckpt, epoch, global_step)
+        if stopped_for_time:
+            break
+
+        dev_loss, dev_acc = run_eval(model, dev_loader, CFG)
+        gap = train_acc - dev_acc
+
+        overfit_flag = " <- dev_loss rising (overfitting signal)" if dev_loss > best_dev_loss else ""
+        print(f"Epoch {epoch+1}/{CFG.epochs} | train_loss={train_loss:.4f} train_acc={train_acc:.4f} "
+              f"| dev_loss={dev_loss:.4f} dev_acc={dev_acc:.4f} | train-dev gap={gap:+.4f}{overfit_flag}")
+
+        is_best_f1 = dev_acc > best_dev_score
+        if is_best_f1:
+            best_dev_score = dev_acc
+
+        if CFG.early_stop_metric == "dev_loss":
+            improved = dev_loss < best_dev_loss
+        else:
+            improved = is_best_f1
+        if dev_loss < best_dev_loss:
+            best_dev_loss = dev_loss
+
+        patience_counter = 0 if improved else patience_counter + 1
+        ckpt.save(model, optimizer, scheduler, epoch + 1, global_step, best_dev_score, is_best=is_best_f1)
+
+        if patience_counter >= CFG.early_stop_patience:
+            print(f"Early stopping ({CFG.early_stop_metric} plateaued for {CFG.early_stop_patience} epochs).")
+            break
+
+    print(f"Training loop finished. Best dev accuracy: {best_dev_score:.4f} | Best dev_loss: {best_dev_loss:.4f}")
+    if stopped_for_time:
+        print("NOTE: stopped due to time budget mid-epoch — re-run this cell/notebook to resume.")
+else:
+    print(f"CFG.k_folds = {CFG.k_folds} (> 1) -> skipping Section 8's single-model training. "
+          f"Section 8b will train the fold models instead.")
+
 
 # ## 8b. K-Fold Cross-Validation (optional, alternative to Section 8)
 
