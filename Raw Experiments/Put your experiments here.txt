@@ -1,0 +1,1 @@
+Put your experimentation folders here, organize folders such taht for each model tested it has it's own folder, check HOW_TO_ORGANIZE_EXPERIMENTS.md and organize_by_type.sh for more details
