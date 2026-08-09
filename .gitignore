@@ -1,10 +1,15 @@
 # Data files and data directories
 *.txt
+!requirements.txt
 *.tsv
 *.csv
 *.json
 *.jsonl
 data/
+
+# run_pipeline.py's local state markers -- machine-specific, never track these
+.deps_installed
+.torch_variant
 
 # Model checkpoints and saved weights
 *.pt

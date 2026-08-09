@@ -40,7 +40,7 @@ Track 3 fine-tunes an off-the-shelf Arabic-pretrained transformer encoder and ad
 | `linear_head` | Transformer encoder + a plain linear classification layer per character | 0.0824 (`camelbert_mix`) |
 | `bilstm_crf_head` | Transformer encoder + a BiLSTM-CRF classification head per character (**do not confuse this with the standalone "BiLSTM-CRF" tagger in Track 1** — here the BiLSTM-CRF only sits on top of a pretrained transformer's output, it is not trained from raw characters) | 0.0483 (`arabert_v02`) |
 
-Backbones currently wired up (see `MODEL_REGISTRY` in each `training/track3/<head_type>/finetune_<head_type>.py`):
+Backbones currently available (see `MODEL_REGISTRY` in each `training/track3/<head_type>/finetune_<head_type>.py`):
 
 | `--model` key | HuggingFace checkpoint | Available for |
 |---|---|---|
@@ -182,6 +182,8 @@ Useful flags:
 | `--skip-install` / `--reinstall` | Skip, or force, the `pip install -r requirements.txt` step |
 | `--skip-torch` / `--force-torch` / `--cpu-only` | Control the automatic torch install (use what's already installed, force a re-check, or force the CPU build even with a GPU present) |
 | `--skip-data-fetch` / `--force-data-fetch` | Skip, or force, re-downloading `./data` from Google Drive |
+| `--drive-folder-id ID` | Override the `DRIVE_FOLDER_ID` placeholder in `utils/fetch_data.py` without editing the file |
+| `--cuda-index URL` | pip `--index-url` to use for the CUDA torch build (default: `cu128`; see [pytorch.org/get-started/locally](https://pytorch.org/get-started/locally/) if it 404s for your driver) |
 
 Anything after these flags that `run_pipeline.py` doesn't recognize is forwarded straight through to the underlying `finetune_<head_type>.py` script's own `argparse`.
 

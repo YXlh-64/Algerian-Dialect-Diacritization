@@ -65,7 +65,9 @@ def fetch_data(folder_id: str, force: bool = False) -> Path:
         sys.exit(
             "ERROR: DRIVE_FOLDER_ID is still a placeholder.\n"
             "Open utils/fetch_data.py and replace DRIVE_FOLDER_ID with the real "
-            "Google Drive folder ID (or pass --folder-id XXXX on the command line).\n"
+            "Google Drive folder ID, or pass it on the command line instead:\n"
+            "  - direct:       python utils/fetch_data.py --folder-id XXXX\n"
+            "  - via pipeline: python run_pipeline.py ... --drive-folder-id XXXX\n"
             "The folder must be shared as 'Anyone with the link -> Viewer'."
         )
 

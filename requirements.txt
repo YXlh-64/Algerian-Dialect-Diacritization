@@ -1,0 +1,8 @@
+numpy
+pandas
+matplotlib
+transformers
+scikit-learn
+sympy
+gdown
+# torch installed separately by run_pipeline.py's ensure_torch() (GPU-aware)
