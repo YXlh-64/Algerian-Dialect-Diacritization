@@ -143,7 +143,18 @@ def ensure_torch(skip: bool, force: bool, cpu_only: bool, cuda_index: str):
     # PyPI on Linux even when the --index-url install failed, so trusting
     # `want` here would mislabel a working CUDA install as "cpu" and cause
     # every future run to pointlessly uninstall/reinstall it.
-    actual = _installed_torch_variant() or want
+    #
+    # This has to run in a FRESH subprocess, not call _installed_torch_variant()
+    # in-process: if torch was already imported once in this process (e.g. by
+    # the pre-install check above), Python caches it in sys.modules, and a
+    # second in-process `import torch` after pip swaps the files on disk
+    # would just return that stale cached module instead of the new install.
+    probe = subprocess.run(
+        [sys.executable, "-c",
+         "import torch; print('cuda' if torch.cuda.is_available() else 'cpu')"],
+        capture_output=True, text=True,
+    )
+    actual = probe.stdout.strip() if probe.returncode == 0 and probe.stdout.strip() in ("cuda", "cpu") else want
     TORCH_VARIANT_MARKER.write_text(actual)
     print(f"torch ({actual}) installed.\n")
 
