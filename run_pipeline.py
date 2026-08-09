@@ -124,10 +124,10 @@ def ensure_torch(skip: bool, force: bool, cpu_only: bool, cuda_index: str):
         result = subprocess.run(cmd)
         if result.returncode != 0:
             print(f"WARNING: CUDA torch install from {cuda_index} failed -- falling back "
-                  f"to the CPU build. If your GPU/driver needs a different CUDA version, "
-                  f"pass --cuda-index (see https://pytorch.org/get-started/locally/ for the "
-                  f"right index URL for your setup).", file=sys.stderr)
-            want = "cpu"
+                  f"to the default (non-index) pip install. If your GPU/driver needs a "
+                  f"different CUDA version, pass --cuda-index (see "
+                  f"https://pytorch.org/get-started/locally/ for the right index URL for "
+                  f"your setup).", file=sys.stderr)
             result = subprocess.run([sys.executable, "-m", "pip", "install", "torch"])
     else:
         result = subprocess.run([sys.executable, "-m", "pip", "install", "torch"])
@@ -138,8 +138,25 @@ def ensure_torch(skip: bool, force: bool, cpu_only: bool, cuda_index: str):
               "(and install torch yourself).", file=sys.stderr)
         sys.exit(result.returncode)
 
-    TORCH_VARIANT_MARKER.write_text(want)
-    print(f"torch ({want}) installed.\n")
+    # Record what's ACTUALLY installed, not what we asked pip for -- the
+    # fallback "pip install torch" above pulls a CUDA-capable build from
+    # PyPI on Linux even when the --index-url install failed, so trusting
+    # `want` here would mislabel a working CUDA install as "cpu" and cause
+    # every future run to pointlessly uninstall/reinstall it.
+    #
+    # This has to run in a FRESH subprocess, not call _installed_torch_variant()
+    # in-process: if torch was already imported once in this process (e.g. by
+    # the pre-install check above), Python caches it in sys.modules, and a
+    # second in-process `import torch` after pip swaps the files on disk
+    # would just return that stale cached module instead of the new install.
+    probe = subprocess.run(
+        [sys.executable, "-c",
+         "import torch; print('cuda' if torch.cuda.is_available() else 'cpu')"],
+        capture_output=True, text=True,
+    )
+    actual = probe.stdout.strip() if probe.returncode == 0 and probe.stdout.strip() in ("cuda", "cpu") else want
+    TORCH_VARIANT_MARKER.write_text(actual)
+    print(f"torch ({actual}) installed.\n")
 
 
 def ensure_requirements(skip_install: bool, force_reinstall: bool):
@@ -151,9 +168,13 @@ def ensure_requirements(skip_install: bool, force_reinstall: bool):
     if skip_install:
         return
     if not REQUIREMENTS_FILE.exists():
-        print(f"NOTE: {REQUIREMENTS_FILE.name} not found, skipping dependency install.",
-              file=sys.stderr)
-        return
+        sys.exit(
+            f"ERROR: {REQUIREMENTS_FILE.name} not found at {REQUIREMENTS_FILE}.\n"
+            f"This repo's dependencies (transformers, gdown, etc.) can't be installed "
+            f"without it, so continuing would just fail later with a confusing "
+            f"ImportError mid-run. Either restore {REQUIREMENTS_FILE.name}, or pass "
+            f"--skip-install if you've already set up the environment yourself."
+        )
 
     current_hash = _requirements_hash()
     if not force_reinstall and INSTALL_MARKER.exists():
@@ -268,18 +289,12 @@ def main():
                               f"one fails).")
     args, passthrough = parser.parse_known_args()
 
-    ensure_torch(skip=args.skip_torch, force=args.force_torch,
-                 cpu_only=args.cpu_only, cuda_index=args.cuda_index)
-    ensure_requirements(skip_install=args.skip_install, force_reinstall=args.reinstall)
-
-    # If --data-dir was given, the caller is pointing at their own dataset
-    # location -- don't also try to fetch/overwrite ./data.
-    ensure_data(
-        skip_fetch=args.skip_data_fetch or bool(args.data_dir),
-        force_fetch=args.force_data_fetch,
-        folder_id=args.drive_folder_id,
-    )
-
+    # Resolve which script this invocation maps to (and validate it exists)
+    # BEFORE running any of the ensure_* side effects below -- this is what
+    # makes --dry-run actually dry: on a fresh machine, ensure_torch/
+    # ensure_requirements/ensure_data would otherwise trigger a real
+    # multi-GB torch install, a pip install, and a Google Drive fetch just
+    # to "preview" a command.
     key = (args.track, args.head_type)
     if key not in runs:
         available = ", ".join(f"{t}/{h}" for t, h in sorted(runs)) or "(none found)"
@@ -318,6 +333,18 @@ def main():
 
     if args.dry_run:
         return 0
+
+    ensure_torch(skip=args.skip_torch, force=args.force_torch,
+                 cpu_only=args.cpu_only, cuda_index=args.cuda_index)
+    ensure_requirements(skip_install=args.skip_install, force_reinstall=args.reinstall)
+
+    # If --data-dir was given, the caller is pointing at their own dataset
+    # location -- don't also try to fetch/overwrite ./data.
+    ensure_data(
+        skip_fetch=args.skip_data_fetch or bool(args.data_dir),
+        force_fetch=args.force_data_fetch,
+        folder_id=args.drive_folder_id,
+    )
 
     result = subprocess.run(cmd, cwd=run_cwd)
     return result.returncode
