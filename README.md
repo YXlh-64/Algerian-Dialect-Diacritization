@@ -189,6 +189,42 @@ Anything after these flags that `run_pipeline.py` doesn't recognize is forwarded
 
 **Outputs**: checkpoints and exported artifacts land under `working/checkpoints/` and `working/exports/` (created on first run, gitignored). Training logs print to the console; metric reports are written by the evaluation scripts into `evaluation/<track>/<head_type>/report_*.md` and rolled up into `experiments/leaderboard.md`.
 
+## Adding a New Track (Track 1 / 2 / 4)
+> **⚠️ Temporary section — whoever implements Track 1, 2, or 4 should delete this section once their track lands and its own docs cover it.** This exists so the guidance isn't only living in a PR thread someone has to go dig up.
+
+Follow the exact folder pattern `track3/` already uses — no changes to `run_pipeline.py` needed for this part, it auto-discovers any `training/<track>/<head_type>/finetune_<head_type>.py`:
+```
+configs/track<N>/<head_type>/strategy_a_<model>_<score>.yaml
+models/track<N>/<head_type>/*_model.py
+training/track<N>/<head_type>/finetune_<head_type>.py
+evaluation/track<N>/<head_type>/{evaluate_<head_type>.py, report_strategy_a_*.md}
+experiments/track<N>/<head_type>/strategy_a_overview.md
+```
+
+### Adding your own CLI flags
+Adding a track-specific flag is two separate steps — don't conflate them:
+1. **Define the flag** in your own `finetune_<head_type>.py`'s `argparse` — this part you always do yourself, same as any CLI script. `run_pipeline.py` has no idea what flags your track needs.
+2. **Wire it into `run_pipeline.py`** — you *don't* have to do this. It's a thin dispatcher, not a shared argparse everyone extends. Any argument on the command line it doesn't recognize is forwarded as-is to your script, already parsed correctly (typed values, boolean flags, multi-value flags — not just plain strings).
+
+So concretely: add `p.add_argument("--sequence-length", type=int, default=64)` to your own script, and it already works through the shared entrypoint with zero changes to `run_pipeline.py`:
+```bash
+python run_pipeline.py --track track1 --head-type bilstm_crf \
+    --model <key> --sequence-length 128 --layers 64 128 256
+```
+Only touch `run_pipeline.py` itself for something meant to be shared across *all* tracks (e.g. a new shared data-source flag) — not something specific to your own track.
+
+**Reserved names — avoid these for your own flags**, since `run_pipeline.py` already owns them and will silently swallow a same-named flag instead of forwarding it (no error, just wrong behavior): `--track`, `--head-type`, `--model`, `--data-dir`, `--dry-run`, `--skip-install`, `--reinstall`, `--skip-data-fetch`, `--force-data-fetch`, `--drive-folder-id`, `--skip-torch`, `--force-torch`, `--cpu-only`, `--cuda-index`.
+
+### Existing pattern to follow, not reinvent
+Track 3's scripts barely use CLI flags — they only take `--active-model`; every hyperparameter (batch size, lr, epochs, dropout, etc.) lives in a per-model config dict baked into the script, selected by that one flag. Intended shape: **`--head-type` picks the architecture variant** (folder-level), **`--model` picks a named preset from your own `MODEL_REGISTRY`** (not necessarily an HF checkpoint — for tracks with no pretrained backbone, it's just a preset name), and reach for a real CLI flag only when something needs to vary *per run*, not per preset.
+
+### Rough guess at what each track will need
+Going by the architectures named above and what's already precedented in Track 3 — not a spec, just a starting point so nobody's staring at a blank page:
+
+- **Track 1 (BiLSTM taggers):** no pretrained backbone, so `--model` maps to a hyperparameter preset (e.g. `bilstm_crf_deep`), not a checkpoint. The three architectures are three `head_type` folders (`bilstm_cnn`, `bilstm_crf`, `bilstm_cnn_crf`), same split style as Track 3's `linear_head`/`bilstm_crf_head`. Beyond the preset: `--hidden-dim`, `--lstm-layers`, `--dropout`, and `--cnn-filters`/`--cnn-kernel-sizes` for the CNN variants only.
+- **Track 2 (char-based LLMs):** ByT5 and CANINE aren't the same shape as each other. CANINE is encoder-only, so it fits Track 3's per-char classification pattern directly (`--model` = HF checkpoint key). ByT5 is encoder-decoder, usually meaning text-to-text *generation* instead of tagging — a different training loop, not just a different backbone. If so, that's naturally two `head_type`s: `char_tagging_head` (CANINE) and `seq2seq_head` (ByT5, wanting `--generation-max-length`/`--num-beams` as real per-run flags).
+- **Track 4 (from-scratch Transformer):** trained from scratch like Track 1, so `--model` is an architecture-size preset, not a checkpoint. Since "from scratch" is the point, architecture hyperparameters are worth exposing as real flags: `--num-layers`, `--d-model`, `--num-heads`, `--ffn-dim`, `--dropout`, `--max-seq-len`, plus `--cnn-filters`/`--cnn-kernel-sizes` for the `transformer_cnn_crf` variant only.
+
 ## Team and Acknowledgments
 - **Institution**: ENSIA Research Team
 - **Supervisors**:  Dr. Mohamed Hadj Ameur, Dr. Mohamed Brahimi, Dr. ElMoatez Billah Nagoudi
