@@ -102,7 +102,7 @@ Algerian-Dialect-Diacritization-main/
 │
 ├── training/                       # Training entry points, auto-discovered by run_pipeline.py
 │   ├── README.md
-│   ├── track1/bilstm_cnn_crf/finetune_bilstm_cnn_crf.py
+│   ├── track1/bilstm_cnn_crf/{finetune_bilstm_cnn_crf.py,data.py,engine.py}
 │   └── track3/{linear_head,bilstm_crf_head}/finetune_<head_type>.py
 │
 ├── evaluation/                     # Metric computation + one Markdown report per finished run
@@ -120,9 +120,12 @@ Algerian-Dialect-Diacritization-main/
 │
 ├── utils/
 │   ├── README.md
+│   ├── track1/data.py              # Shared Track-1 loading and record helpers
 │   └── fetch_data.py               # Downloads data/ from Google Drive if it isn't already present locally
 │
-├── tests/README.md                 # No executable tests yet
+├── tests/                          # Lightweight regression tests and test guidance
+│   ├── README.md
+│   └── test_track1_utils.py
 └── working/                        # Local scratch space created at run time (checkpoints/, exports/) — gitignored
 ```
 

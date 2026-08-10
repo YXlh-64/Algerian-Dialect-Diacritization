@@ -16,6 +16,16 @@ When tests are added, use clear scope-based names, for example:
 - test_training_*
 - test_evaluation_*
 
+## Running
+
+Track-1 utility and focal-loss regression tests use the standard-library test runner:
+
+```bash
+python -m unittest -v tests/test_track1_utils.py
+```
+
+PyTorch-dependent cases are skipped automatically when PyTorch is unavailable.
+
 ## Important Notes
-- No executable tests are included in this initialization stage.
-- Prioritize deterministic tests and fixed fixtures when implementations are added.
+- Keep tests deterministic and use fixed fixtures.
+- Add integration coverage for long-running training separately from lightweight unit tests.

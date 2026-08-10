@@ -1,46 +1,42 @@
 """Metric, structured-ensemble, and submission utilities for Track 1."""
+
 from __future__ import annotations
 
 import itertools
+import sys
 from collections import Counter, defaultdict
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Iterable, Optional
+from typing import Any
 
 import numpy as np
 import pandas as pd
 
-NUM_LABELS = 16
+REPO_ROOT = Path(__file__).resolve().parents[3]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
-
-def _iter_words(record: dict[str, Any], include_labels: bool = True):
-    chars = record["chars"]
-    labels = record.get("labels")
-    start = 0
-    for index, char in enumerate(chars + [" "]):
-        if char == " ":
-            if index > start:
-                word = "".join(chars[start:index])
-                word_labels = tuple(labels[start:index]) if include_labels else None
-                yield word, word_labels, start, index
-            start = index + 1
-
-
-def _letter_label_counts(records: list[dict[str, Any]]) -> np.ndarray:
-    counts = np.zeros(NUM_LABELS, dtype=np.int64)
-    for record in records:
-        for char, label in zip(record["chars"], record["labels"]):
-            if char != " ":
-                counts[label] += 1
-    return counts
-
+from utils.track1.data import NUM_LABELS, iter_words, letter_label_counts
 
 LABEL_TO_MARKS = {
-    0: "", 1: "\u064e", 2: "\u064b", 3: "\u064f", 4: "\u064c",
-    5: "\u0650", 6: "\u064d", 7: "\u0652", 8: "\u0651",
-    9: "\u0651\u064e", 10: "\u0651\u064b", 11: "\u0651\u064f",
-    12: "\u0651\u064c", 13: "\u0651\u0650", 14: "\u0651\u064d",
+    0: "",
+    1: "\u064e",
+    2: "\u064b",
+    3: "\u064f",
+    4: "\u064c",
+    5: "\u0650",
+    6: "\u064d",
+    7: "\u0652",
+    8: "\u0651",
+    9: "\u0651\u064e",
+    10: "\u0651\u064b",
+    11: "\u0651\u064f",
+    12: "\u0651\u064c",
+    13: "\u0651\u0650",
+    14: "\u0651\u064d",
     15: "\u0651\u0652",
 }
+
 
 def per_class_f1(
     targets: Iterable[int], predictions: Iterable[int], num_labels: int = NUM_LABELS
@@ -93,7 +89,7 @@ def build_word_log_priors(
 ) -> dict[str, np.ndarray]:
     word_counts: dict[str, np.ndarray] = {}
     for record in records:
-        for word, labels, _, _ in _iter_words(record):
+        for word, labels, _, _ in iter_words(record):
             if word not in word_counts:
                 word_counts[word] = np.zeros((len(word), NUM_LABELS), dtype=np.float64)
             for position, label in enumerate(labels):
@@ -112,7 +108,7 @@ def word_prior_matrix(
     record: dict[str, Any], priors: dict[str, np.ndarray]
 ) -> np.ndarray:
     matrix = np.zeros((len(record["chars"]), NUM_LABELS), dtype=np.float64)
-    for word, _, start, end in _iter_words(record, include_labels=False):
+    for word, _, start, end in iter_words(record, include_labels=False):
         if word in priors:
             matrix[start:end] = priors[word]
     return matrix
@@ -131,7 +127,7 @@ def build_sentence_memory(
 
 
 def class_log_prior(records: list[dict[str, Any]]) -> np.ndarray:
-    counts = _letter_label_counts(records).astype(np.float64) + 1.0
+    counts = letter_label_counts(records).astype(np.float64) + 1.0
     prior = np.log(counts / counts.sum())
     return prior - prior.mean()
 
@@ -148,8 +144,8 @@ def simplex_grid(model_count: int, denominator: int = 4) -> list[np.ndarray]:
 
 def blend_transition(
     weights: np.ndarray,
-    transitions: list[Optional[dict[str, np.ndarray]]],
-) -> Optional[dict[str, np.ndarray]]:
+    transitions: list[dict[str, np.ndarray] | None],
+) -> dict[str, np.ndarray] | None:
     usable = [
         (weight, transition)
         for weight, transition in zip(weights, transitions)
@@ -192,14 +188,14 @@ def viterbi_numpy(
 def decode_ensemble(
     model_outputs: list[list[dict[str, Any]]],
     records: list[dict[str, Any]],
-    transitions: list[Optional[dict[str, np.ndarray]]],
+    transitions: list[dict[str, np.ndarray] | None],
     weights: np.ndarray,
     lexical_priors: dict[str, np.ndarray],
     lexical_strength: float,
     frequency_prior: np.ndarray,
     frequency_strength: float,
     transition_strength: float,
-    sentence_memory: Optional[dict[str, np.ndarray]] = None,
+    sentence_memory: dict[str, np.ndarray] | None = None,
     exact_sentence_memory: bool = False,
 ) -> list[np.ndarray]:
     blended_transition = blend_transition(weights, transitions)
@@ -210,7 +206,9 @@ def decode_ensemble(
             for weight, outputs in zip(weights, model_outputs)
         )
         if lexical_strength > 0:
-            scores = scores + lexical_strength * word_prior_matrix(record, lexical_priors)
+            scores = scores + lexical_strength * word_prior_matrix(
+                record, lexical_priors
+            )
         if frequency_strength > 0:
             scores = scores - frequency_strength * frequency_prior[None, :]
         for position, char in enumerate(record["chars"]):
@@ -220,9 +218,7 @@ def decode_ensemble(
         if blended_transition is None:
             prediction = scores.argmax(axis=1).astype(np.int64)
         else:
-            prediction = viterbi_numpy(
-                scores, blended_transition, transition_strength
-            )
+            prediction = viterbi_numpy(scores, blended_transition, transition_strength)
         if (
             exact_sentence_memory
             and sentence_memory is not None
@@ -237,7 +233,7 @@ def decode_ensemble(
 
 def tune_ensemble(
     model_outputs: list[list[dict[str, Any]]],
-    transitions: list[Optional[dict[str, np.ndarray]]],
+    transitions: list[dict[str, np.ndarray] | None],
     records: list[dict[str, Any]],
     prior_records: list[dict[str, Any]],
 ) -> tuple[dict[str, Any], list[np.ndarray], pd.DataFrame]:
@@ -249,21 +245,28 @@ def tune_ensemble(
         for lexical_strength in (0.0, 0.20, 0.45, 0.75):
             for frequency_strength in (0.0, 0.05, 0.10, 0.20):
                 predictions = decode_ensemble(
-                    model_outputs, records, transitions, weights,
-                    lexical_priors, lexical_strength,
-                    frequency_prior, frequency_strength,
+                    model_outputs,
+                    records,
+                    transitions,
+                    weights,
+                    lexical_priors,
+                    lexical_strength,
+                    frequency_prior,
+                    frequency_strength,
                     transition_strength=0.0,
                     sentence_memory=sentence_memory,
                 )
                 metrics = score_record_predictions(records, predictions)
-                candidates.append({
-                    "weights": weights,
-                    "lexical_strength": lexical_strength,
-                    "frequency_strength": frequency_strength,
-                    "transition_strength": 0.0,
-                    "macro_f1_16": metrics["macro_f1_16"],
-                    "accuracy": metrics["accuracy"],
-                })
+                candidates.append(
+                    {
+                        "weights": weights,
+                        "lexical_strength": lexical_strength,
+                        "frequency_strength": frequency_strength,
+                        "transition_strength": 0.0,
+                        "macro_f1_16": metrics["macro_f1_16"],
+                        "accuracy": metrics["accuracy"],
+                    }
+                )
     stage_one = sorted(
         candidates,
         key=lambda row: (row["macro_f1_16"], row["accuracy"]),
@@ -273,39 +276,48 @@ def tune_ensemble(
     for candidate in stage_one:
         for transition_strength in (0.0, 0.25, 0.50, 0.75, 1.0):
             predictions = decode_ensemble(
-                model_outputs, records, transitions, candidate["weights"],
-                lexical_priors, candidate["lexical_strength"],
-                frequency_prior, candidate["frequency_strength"],
-                transition_strength, sentence_memory,
+                model_outputs,
+                records,
+                transitions,
+                candidate["weights"],
+                lexical_priors,
+                candidate["lexical_strength"],
+                frequency_prior,
+                candidate["frequency_strength"],
+                transition_strength,
+                sentence_memory,
             )
             metrics = score_record_predictions(records, predictions)
-            structured.append({
-                **candidate,
-                "transition_strength": transition_strength,
-                "macro_f1_16": metrics["macro_f1_16"],
-                "accuracy": metrics["accuracy"],
-                "predictions": predictions,
-                "metrics": metrics,
-            })
-    best = max(
-        structured, key=lambda row: (row["macro_f1_16"], row["accuracy"])
-    )
+            structured.append(
+                {
+                    **candidate,
+                    "transition_strength": transition_strength,
+                    "macro_f1_16": metrics["macro_f1_16"],
+                    "accuracy": metrics["accuracy"],
+                    "predictions": predictions,
+                    "metrics": metrics,
+                }
+            )
+    best = max(structured, key=lambda row: (row["macro_f1_16"], row["accuracy"]))
     config = {
         "weights": best["weights"],
         "lexical_strength": best["lexical_strength"],
         "frequency_strength": best["frequency_strength"],
         "transition_strength": best["transition_strength"],
     }
-    leaderboard = pd.DataFrame([
-        {
-            **{
-                key: value for key, value in row.items()
-                if key not in {"predictions", "metrics", "weights"}
-            },
-            "weights": np.round(row["weights"], 3).tolist(),
-        }
-        for row in structured
-    ]).sort_values(["macro_f1_16", "accuracy"], ascending=False)
+    leaderboard = pd.DataFrame(
+        [
+            {
+                **{
+                    key: value
+                    for key, value in row.items()
+                    if key not in {"predictions", "metrics", "weights"}
+                },
+                "weights": np.round(row["weights"], 3).tolist(),
+            }
+            for row in structured
+        ]
+    ).sort_values(["macro_f1_16", "accuracy"], ascending=False)
     return config, best["predictions"], leaderboard
 
 
@@ -318,10 +330,12 @@ def write_submission(
     for record, prediction in zip(records, predictions):
         for char_index, (char, label) in enumerate(zip(record["chars"], prediction)):
             if char != " ":
-                rows.append({
-                    "Id": f'{record["sent_id"]}_{char_index}',
-                    "Label": int(label),
-                })
+                rows.append(
+                    {
+                        "Id": f"{record['sent_id']}_{char_index}",
+                        "Label": int(label),
+                    }
+                )
     submission = pd.DataFrame(rows, columns=["Id", "Label"])
     submission.to_csv(output_path, index=False)
     return submission
@@ -329,6 +343,5 @@ def write_submission(
 
 def vocalize(chars: list[str], labels: Iterable[int]) -> str:
     return "".join(
-        char + LABEL_TO_MARKS[int(label)]
-        for char, label in zip(chars, labels)
+        char + LABEL_TO_MARKS[int(label)] for char, label in zip(chars, labels)
     )

@@ -7,7 +7,10 @@ Shared code:
 
 - Model: `models/track1/bilstm_cnn_crf/bilstm_cnn_crf_model.py`
 - Training: `training/track1/bilstm_cnn_crf/finetune_bilstm_cnn_crf.py`
+- Training engine: `training/track1/bilstm_cnn_crf/engine.py`
+- Batching and sampling: `training/track1/bilstm_cnn_crf/data.py`
 - Evaluation: `evaluation/track1/bilstm_cnn_crf/evaluate_bilstm_cnn_crf.py`
+- Shared record/data helpers: `utils/track1/data.py`
 
 | Model | Config | Report | Dev macro-F1 (16) | Public | Private |
 |---|---|---|---:|---:|---:|

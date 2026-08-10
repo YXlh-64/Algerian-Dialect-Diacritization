@@ -3,14 +3,16 @@
 Extracted from the validated Kaggle experiment.  Runtime hyperparameters are
 passed in by the training entry point so this module has no notebook globals.
 """
+
 from __future__ import annotations
 
-from typing import Any, Iterable
+from typing import Any
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
+from torch import nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
+
 
 def class_balanced_focal_loss(
     emissions: torch.Tensor,
@@ -21,13 +23,18 @@ def class_balanced_focal_loss(
 ) -> torch.Tensor:
     selected_logits = emissions[letter_mask]
     selected_labels = labels[letter_mask]
-    cross_entropy = F.cross_entropy(
-        selected_logits, selected_labels, weight=class_weights, reduction="none"
+    log_probabilities = F.log_softmax(selected_logits, dim=-1, dtype=torch.float32)
+    cross_entropy = F.nll_loss(
+        log_probabilities,
+        selected_labels,
+        weight=class_weights,
+        reduction="none",
     )
-    true_probability = torch.softmax(selected_logits, dim=-1).gather(
+    log_true_probability = log_probabilities.gather(
         1, selected_labels.unsqueeze(1)
     ).squeeze(1)
-    return (((1.0 - true_probability).pow(gamma)) * cross_entropy).mean()
+    focal_factor = (1.0 - log_true_probability.exp()).pow(gamma)
+    return (focal_factor * cross_entropy).mean()
 
 
 class LinearChainCRF(nn.Module):
@@ -60,7 +67,9 @@ class LinearChainCRF(nn.Module):
         score = score + emissions[batch_index, 0, tags[:, 0]]
         for timestep in range(1, sequence_length):
             active = mask[:, timestep]
-            transition_score = self.transitions[tags[:, timestep - 1], tags[:, timestep]]
+            transition_score = self.transitions[
+                tags[:, timestep - 1], tags[:, timestep]
+            ]
             emission_score = emissions[batch_index, timestep, tags[:, timestep]]
             score = score + (transition_score + emission_score) * active
         last_positions = mask.long().sum(dim=1) - 1
@@ -82,9 +91,7 @@ class LinearChainCRF(nn.Module):
         return torch.logsumexp(alpha + self.end_transitions, dim=1)
 
     @torch.no_grad()
-    def decode(
-        self, emissions: torch.Tensor, mask: torch.Tensor
-    ) -> list[list[int]]:
+    def decode(self, emissions: torch.Tensor, mask: torch.Tensor) -> list[list[int]]:
         score = self.start_transitions + emissions[:, 0]
         history = []
         for timestep in range(1, emissions.size(1)):
@@ -109,8 +116,13 @@ class LinearChainCRF(nn.Module):
 
 class BiLSTMDiacritizer(nn.Module):
     def __init__(
-        self, vocabulary_size: int, num_labels: int, use_cnn: bool, use_crf: bool,
-        config: Any, pad_id: int,
+        self,
+        vocabulary_size: int,
+        num_labels: int,
+        use_cnn: bool,
+        use_crf: bool,
+        config: Any,
+        pad_id: int,
     ):
         super().__init__()
         self.use_cnn = use_cnn
@@ -122,13 +134,20 @@ class BiLSTMDiacritizer(nn.Module):
         self.boundary_embedding = nn.Embedding(5, self.config.boundary_dim)
         base_dim = self.config.embedding_dim + self.config.boundary_dim
         if use_cnn:
-            self.convolutions = nn.ModuleList([
-                nn.Conv1d(
-                    base_dim, self.config.cnn_channels, kernel_size=kernel, padding=kernel // 2
-                )
-                for kernel in self.config.cnn_kernels
-            ])
-            input_dim = base_dim + self.config.cnn_channels * len(self.config.cnn_kernels)
+            self.convolutions = nn.ModuleList(
+                [
+                    nn.Conv1d(
+                        base_dim,
+                        self.config.cnn_channels,
+                        kernel_size=kernel,
+                        padding=kernel // 2,
+                    )
+                    for kernel in self.config.cnn_kernels
+                ]
+            )
+            input_dim = base_dim + self.config.cnn_channels * len(
+                self.config.cnn_kernels
+            )
         else:
             self.convolutions = nn.ModuleList()
             input_dim = base_dim
@@ -206,9 +225,7 @@ class BiLSTMDiacritizer(nn.Module):
         }
 
     @torch.no_grad()
-    def decode(
-        self, emissions: torch.Tensor, mask: torch.Tensor
-    ) -> list[list[int]]:
+    def decode(self, emissions: torch.Tensor, mask: torch.Tensor) -> list[list[int]]:
         if self.crf is not None:
             return self.crf.decode(emissions, mask)
         lengths = mask.long().sum(dim=1).tolist()
