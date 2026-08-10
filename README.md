@@ -25,14 +25,22 @@ The project compares four families of architecture for the same char-level diacr
 
 | Track | Name | Architectures | Status |
 |---|---|---|---|
-| **Track 1** | BiLSTM taggers | BiLSTM-CNN, BiLSTM-CRF, BiLSTM-CNN-CRF (our P2 baseline architecture) — standalone recurrent taggers over character embeddings, no transformer backbone | Planned |
+| **Track 1** | BiLSTM taggers | BiLSTM-CNN, BiLSTM-CRF, BiLSTM-CNN-CRF (our P2 baseline architecture) — standalone recurrent taggers over character embeddings, no transformer backbone | **Partially implemented** — focused P2 BiLSTM-CNN-CRF ensemble |
 | **Track 2** | Character-based LLMs | ByT5, CANINE, and similar tokenizer-free / char-level transformer models | Planned |
 | **Track 3** | Arabic-pretrained transformers | AraBERT, CAMeLBERT, MARBERT, MARBERTv2, DziriBERT, AlcLaM, and other Arabic BERT-style variants, fine-tuned for token/char classification | **Implemented** — see below |
 | **Track 4** | Transformer-based models (from scratch) | Custom, from-scratch Transformer architectures for char-based tagging: plain char-level Transformer, and Transformer-CNN-CRF variants (i.e. the transformer encoder itself is trained from scratch, not fine-tuned from a pretrained checkpoint) | Planned |
 
 All tracks — implemented and planned — are trained following **Strategy A** first (see table above), before the B/C/D pretraining-transfer variants are attempted.
 
-### Track 3 in detail (the only track with code so far)
+### Track 1 in detail
+
+Track 1 currently provides the focused P2 `bilstm_cnn_crf` architecture: parallel temporal
+character CNNs, a three-layer BiLSTM, and a linear-chain CRF. Five independently seeded instances
+are selected on the official development split and combined with a structured ensemble. The
+Strategy-A run recorded here scored **0.95048 public / 0.94829 private** on Kaggle; see
+`experiments/track1/bilstm_cnn_crf/strategy_a_overview.md`.
+
+### Track 3 in detail
 Track 3 fine-tunes an off-the-shelf Arabic-pretrained transformer encoder and adds one of two **heads** on top (the head is a separate axis from the track/strategy — see the note at the top of `run_pipeline.py`):
 
 | Head type | What it is | Best Strategy-A result (DER) |
@@ -55,6 +63,7 @@ Backbones currently available (see `MODEL_REGISTRY` in each `training/track3/<he
 Full ranked results across every model × head combination: [`experiments/leaderboard.md`](experiments/leaderboard.md). Per-model config, training curves, and metric report: `experiments/track3/<head_type>/strategy_a_overview.md`.
 
 ## Evaluation Metrics
+- **Macro-F1 (16 classes)**: Unweighted mean of per-class F1 with all legal labels included.
 - **CER**: Character Error Rate measuring normalized character-level edit distance.
 - **WER**: Word Error Rate measuring normalized word-level edit distance.
 - **DER**: Diacritic Error Rate on all diacritizable character positions.
@@ -63,7 +72,8 @@ Full ranked results across every model × head combination: [`experiments/leader
 - **Accuracy**: Exact diacritic match accuracy per character position.
 
 ## Repository Structure
-This is the actual current layout (not a plan) — every path shown here exists in the repo today. `track3/` is the only track subfolder that exists so far; Tracks 1, 2, and 4 will each get their own `track1/`, `track2/`, `track4/` subfolder under `configs/`, `models/`, `training/`, `evaluation/`, and `experiments/` once implemented, following the exact same pattern as `track3/`.
+This is the actual current layout (not a plan). Tracks 1 and 3 have implementations; Tracks 2 and
+4 will follow the same folder pattern when implemented.
 
 ```text
 Algerian-Dialect-Diacritization-main/
@@ -82,18 +92,22 @@ Algerian-Dialect-Diacritization-main/
 │
 ├── configs/                        # Per-run YAML configs, one per (track, head_type, model) combo
 │   ├── README.md
+│   ├── track1/bilstm_cnn_crf/strategy_a_p2_ensemble_09483.yaml
 │   └── track3/{linear_head,bilstm_crf_head}/strategy_a_<model>_<score>.yaml
 │
 ├── models/                         # Model/architecture implementations
 │   ├── README.md
+│   ├── track1/bilstm_cnn_crf/bilstm_cnn_crf_model.py
 │   └── track3/{linear_head,bilstm_crf_head}/*_model.py
 │
 ├── training/                       # Training entry points, auto-discovered by run_pipeline.py
 │   ├── README.md
+│   ├── track1/bilstm_cnn_crf/finetune_bilstm_cnn_crf.py
 │   └── track3/{linear_head,bilstm_crf_head}/finetune_<head_type>.py
 │
 ├── evaluation/                     # Metric computation + one Markdown report per finished run
 │   ├── README.md
+│   ├── track1/bilstm_cnn_crf/{evaluate_bilstm_cnn_crf.py,report_strategy_a_*.md}
 │   └── track3/{linear_head,bilstm_crf_head}/
 │       ├── evaluate_<head_type>.py
 │       └── report_strategy_a_<model>_<score>.md
@@ -101,6 +115,7 @@ Algerian-Dialect-Diacritization-main/
 ├── experiments/                    # Strategy-level summaries and the overall leaderboard
 │   ├── README.md
 │   ├── leaderboard.md              # All runs, ranked
+│   ├── track1/bilstm_cnn_crf/strategy_a_overview.md
 │   └── track3/{linear_head,bilstm_crf_head}/strategy_a_overview.md
 │
 ├── utils/
@@ -162,6 +177,9 @@ python run_pipeline.py --track track3 --head-type linear_head --model marbert
 The single entrypoint for every track/head/model combination is `run_pipeline.py`. On every run it will, in order: (1) detect a GPU via `nvidia-smi` and install the matching CPU/CUDA `torch` build if it isn't already installed correctly, (2) `pip install -r requirements.txt` if requirements changed since the last run, (3) check that `./data` looks valid (skips the Drive fetch since data is already bundled here), then (4) dispatch to `training/<track>/<head_type>/finetune_<head_type>.py` with the model you asked for.
 
 ```bash
+# Track 1, focused P2 BiLSTM-CNN-CRF ensemble
+python run_pipeline.py --track track1 --head-type bilstm_cnn_crf --model p2_ensemble
+
 # Track 3, linear head, MARBERT backbone
 python run_pipeline.py --track track3 --head-type linear_head --model marbert
 
@@ -189,8 +207,8 @@ Anything after these flags that `run_pipeline.py` doesn't recognize is forwarded
 
 **Outputs**: checkpoints and exported artifacts land under `working/checkpoints/` and `working/exports/` (created on first run, gitignored). Training logs print to the console; metric reports are written by the evaluation scripts into `evaluation/<track>/<head_type>/report_*.md` and rolled up into `experiments/leaderboard.md`.
 
-## Adding a New Track (Track 1 / 2 / 4)
-> **⚠️ Temporary section — whoever implements Track 1, 2, or 4 should delete this section once their track lands and its own docs cover it.** This exists so the guidance isn't only living in a PR thread someone has to go dig up.
+## Adding a New Track (Track 2 / 4)
+> **⚠️ Temporary section — whoever implements Track 2 or 4 should delete this section once their track lands and its own docs cover it.** This exists so the guidance isn't only living in a PR thread someone has to go dig up.
 
 Follow the exact folder pattern `track3/` already uses — no changes to `run_pipeline.py` needed for this part, it auto-discovers any `training/<track>/<head_type>/finetune_<head_type>.py`:
 ```
@@ -221,7 +239,6 @@ Track 3's scripts barely use CLI flags — they only take `--active-model`; ever
 ### Rough guess at what each track will need
 Going by the architectures named above and what's already precedented in Track 3 — not a spec, just a starting point so nobody's staring at a blank page:
 
-- **Track 1 (BiLSTM taggers):** no pretrained backbone, so `--model` maps to a hyperparameter preset (e.g. `bilstm_crf_deep`), not a checkpoint. The three architectures are three `head_type` folders (`bilstm_cnn`, `bilstm_crf`, `bilstm_cnn_crf`), same split style as Track 3's `linear_head`/`bilstm_crf_head`. Beyond the preset: `--hidden-dim`, `--lstm-layers`, `--dropout`, and `--cnn-filters`/`--cnn-kernel-sizes` for the CNN variants only.
 - **Track 2 (char-based LLMs):** ByT5 and CANINE aren't the same shape as each other. CANINE is encoder-only, so it fits Track 3's per-char classification pattern directly (`--model` = HF checkpoint key). ByT5 is encoder-decoder, usually meaning text-to-text *generation* instead of tagging — a different training loop, not just a different backbone. If so, that's naturally two `head_type`s: `char_tagging_head` (CANINE) and `seq2seq_head` (ByT5, wanting `--generation-max-length`/`--num-beams` as real per-run flags).
 - **Track 4 (from-scratch Transformer):** trained from scratch like Track 1, so `--model` is an architecture-size preset, not a checkpoint. Since "from scratch" is the point, architecture hyperparameters are worth exposing as real flags: `--num-layers`, `--d-model`, `--num-heads`, `--ffn-dim`, `--dropout`, `--max-seq-len`, plus `--cnn-filters`/`--cnn-kernel-sizes` for the `transformer_cnn_crf` variant only.
 

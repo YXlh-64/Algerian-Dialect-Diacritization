@@ -1,0 +1,66 @@
+run_id: p2_ensemble_09483
+track: track1
+head_type: bilstm_cnn_crf
+strategy: strategy_a
+model_registry_key: p2_ensemble
+architecture: character_bilstm_cnn_crf
+pretrained_backbone: null
+external_training_data: false
+
+num_classes: 16
+embedding_dim: 128
+boundary_dim: 16
+model_dim: 256
+cnn_channels: 96
+cnn_kernels:
+- 3
+- 5
+- 7
+hidden_dim: 256
+lstm_layers: 3
+mlp_dim: 256
+dropout: 0.30
+
+batch_size: 64
+eval_batch_size: 128
+epochs: 30
+early_stop_patience: 7
+learning_rate: 0.002
+min_learning_rate: 0.0001
+weight_decay: 0.0001
+grad_clip: 5.0
+focal_gamma: 1.5
+effective_beta: 0.999
+max_class_weight: 8.0
+crf_aux_weight: 0.50
+sampler_max_weight: 5.0
+amp: true
+refit_on_train_and_dev: true
+
+seeds:
+- 3407
+- 3408
+- 3409
+- 3410
+- 3411
+selected_epochs:
+  3407: 9
+  3408: 14
+  3409: 10
+  3410: 17
+  3411: 15
+ensemble_weights:
+  3407: 0.0
+  3408: 0.0
+  3409: 0.25
+  3410: 0.50
+  3411: 0.25
+lexical_strength: 0.75
+frequency_strength: 0.20
+transition_strength: 0.25
+
+dev_macro_f1_16: 0.586097
+dev_macro_f1_supported: 0.78146
+dev_accuracy: 0.943952
+public_score: 0.95048
+private_score: 0.94829
