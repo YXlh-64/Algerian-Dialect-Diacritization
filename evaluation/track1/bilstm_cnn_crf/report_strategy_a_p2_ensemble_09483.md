@@ -9,6 +9,28 @@
 - Dev character accuracy: **0.94395**
 - Dev non-space character positions: **15,897**
 
+## Repository error-rate metrics
+
+| Metric | Recorded value |
+|---|---:|
+| CER | Not recorded by the original notebook |
+| WER | Not recorded by the original notebook |
+| DER | **0.056048** (exactly `1 - dev_accuracy`) |
+| DER* | Not recorded by the original notebook |
+| WER* | Not recorded by the original notebook |
+
+The production evaluator now computes all five metrics for future runs. CER is
+aggregate Unicode-codepoint edit distance over fully vocalized sentences; DER
+and WER compare aligned non-space labels; starred metrics exclude each
+multi-character word's final letter. The unavailable historical values cannot
+be reconstructed from the notebook because its dev predictions/checkpoints
+were not exported. They are left explicit rather than estimated.
+
+The scores below are provenance for the original executed Kaggle notebook.
+Review hardening subsequently corrected boundary-padding behavior, so a fresh
+run is required before reporting these historical scores as results of the
+corrected implementation.
+
 The experiment trains five independent instances of the same P2 character-level
 BiLSTM-CNN-CRF architecture. Architecture and epoch selection use the official
 development split. The selected epochs and ensemble hyperparameters are frozen

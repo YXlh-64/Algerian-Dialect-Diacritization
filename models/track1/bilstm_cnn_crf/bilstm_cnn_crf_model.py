@@ -13,6 +13,8 @@ import torch.nn.functional as F
 from torch import nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
+from utils.track1.data import BOUNDARY_PADDING_ID, NUM_BOUNDARY_FEATURES
+
 
 def class_balanced_focal_loss(
     emissions: torch.Tensor,
@@ -131,7 +133,11 @@ class BiLSTMDiacritizer(nn.Module):
         self.char_embedding = nn.Embedding(
             vocabulary_size, self.config.embedding_dim, padding_idx=pad_id
         )
-        self.boundary_embedding = nn.Embedding(5, self.config.boundary_dim)
+        self.boundary_embedding = nn.Embedding(
+            NUM_BOUNDARY_FEATURES,
+            self.config.boundary_dim,
+            padding_idx=BOUNDARY_PADDING_ID,
+        )
         base_dim = self.config.embedding_dim + self.config.boundary_dim
         if use_cnn:
             self.convolutions = nn.ModuleList(
@@ -179,6 +185,9 @@ class BiLSTMDiacritizer(nn.Module):
         char_features = self.char_embedding(batch["tokens"])
         boundary_features_ = self.boundary_embedding(batch["boundaries"])
         features = torch.cat([char_features, boundary_features_], dim=-1)
+        # Convolution windows at a sentence end must see zeros beyond the true
+        # length, independent of the longer examples sharing the same batch.
+        features = features.masked_fill(~batch["mask"].unsqueeze(-1), 0.0)
         if self.use_cnn:
             channels_first = features.transpose(1, 2)
             convolution_features = [

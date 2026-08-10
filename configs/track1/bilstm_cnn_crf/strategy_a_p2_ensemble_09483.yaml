@@ -62,5 +62,10 @@ transition_strength: 0.25
 dev_macro_f1_16: 0.586097
 dev_macro_f1_supported: 0.78146
 dev_accuracy: 0.943952
+dev_CER: null
+dev_WER: null
+dev_DER: 0.056048
+dev_DER_star: null
+dev_WER_star: null
 public_score: 0.95048
 private_score: 0.94829

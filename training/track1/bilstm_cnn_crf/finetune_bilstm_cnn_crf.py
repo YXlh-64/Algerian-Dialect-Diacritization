@@ -270,7 +270,12 @@ def run_experiment(config: RunConfig, active_model: str) -> None:
     print(
         f"ensemble macroF1-16={ensemble_dev_metrics['macro_f1_16']:.5f} | "
         f"supported={ensemble_dev_metrics['macro_f1_supported']:.5f} | "
-        f"accuracy={ensemble_dev_metrics['accuracy']:.5f}"
+        f"accuracy={ensemble_dev_metrics['accuracy']:.5f}\n"
+        f"CER={ensemble_dev_metrics['CER']:.5f} | "
+        f"WER={ensemble_dev_metrics['WER']:.5f} | "
+        f"DER={ensemble_dev_metrics['DER']:.5f} | "
+        f"DER*={ensemble_dev_metrics['DER_star']:.5f} | "
+        f"WER*={ensemble_dev_metrics['WER_star']:.5f}"
     )
 
     full_records = data.train_records + data.dev_records
@@ -363,6 +368,11 @@ def run_experiment(config: RunConfig, active_model: str) -> None:
             "dev_macro_f1_16": ensemble_dev_metrics["macro_f1_16"],
             "dev_macro_f1_supported": ensemble_dev_metrics["macro_f1_supported"],
             "dev_accuracy": ensemble_dev_metrics["accuracy"],
+            "dev_CER": ensemble_dev_metrics["CER"],
+            "dev_WER": ensemble_dev_metrics["WER"],
+            "dev_DER": ensemble_dev_metrics["DER"],
+            "dev_DER_star": ensemble_dev_metrics["DER_star"],
+            "dev_WER_star": ensemble_dev_metrics["WER_star"],
         },
         "submission": str(submission_path),
     }

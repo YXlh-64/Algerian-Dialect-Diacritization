@@ -44,7 +44,10 @@ def initialize_model(
     """Initialize deterministically without racing PyTorch's global CPU RNG."""
     with MODEL_INITIALIZATION_LOCK:
         with torch.random.fork_rng(devices=[]):
-            torch.manual_seed(spec["seed"])
+            # torch.manual_seed also touches every CUDA generator. Seed only
+            # the CPU generator while the model still lives on the CPU so a
+            # parallel worker cannot reset another GPU's training RNG.
+            torch.default_generator.manual_seed(spec["seed"])
             model = BiLSTMDiacritizer(
                 len(context.data.vocabulary),
                 context.data.num_labels,
@@ -67,7 +70,10 @@ def autocast_context(device: torch.device, enabled: bool):
 
 
 def make_grad_scaler(device: torch.device, enabled: bool):
-    return torch.cuda.amp.GradScaler(enabled=bool(enabled and device.type == "cuda"))
+    scaler_enabled = bool(enabled and device.type == "cuda")
+    if hasattr(torch, "amp") and hasattr(torch.amp, "GradScaler"):
+        return torch.amp.GradScaler(device.type, enabled=scaler_enabled)
+    return torch.cuda.amp.GradScaler(enabled=scaler_enabled)
 
 
 def train_epoch(
@@ -207,7 +213,9 @@ def run_training(
 
         dev_outputs = predict_records(model, validation_records, device, context)
         metrics = score_record_predictions(
-            validation_records, [output["prediction"] for output in dev_outputs]
+            validation_records,
+            [output["prediction"] for output in dev_outputs],
+            include_error_rates=False,
         )
         scheduler.step()
         history.append(

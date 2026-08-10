@@ -11,6 +11,8 @@ from typing import Any
 import numpy as np
 
 NUM_LABELS = 16
+BOUNDARY_PADDING_ID = 5
+NUM_BOUNDARY_FEATURES = BOUNDARY_PADDING_ID + 1
 
 
 @dataclass(frozen=True)
@@ -129,7 +131,11 @@ def iter_words(
             continue
         if index > start:
             word = "".join(chars[start:index])
-            word_labels = tuple(labels[start:index]) if include_labels else None
+            word_labels = (
+                tuple(labels[start:index])
+                if include_labels and labels is not None
+                else None
+            )
             yield word, word_labels, start, index
         start = index + 1
 

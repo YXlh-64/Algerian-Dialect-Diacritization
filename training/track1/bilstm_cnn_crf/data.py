@@ -13,7 +13,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 
-from utils.track1.data import NUM_LABELS, letter_label_counts
+from utils.track1.data import BOUNDARY_PADDING_ID, NUM_LABELS, letter_label_counts
 
 
 @dataclass(frozen=True)
@@ -92,7 +92,9 @@ def collate_batch(items: list[dict[str, Any]], *, pad_id: int) -> dict[str, Any]
     max_length = int(lengths.max())
     batch_size = len(items)
     tokens = torch.full((batch_size, max_length), pad_id, dtype=torch.long)
-    boundaries = torch.zeros((batch_size, max_length), dtype=torch.long)
+    boundaries = torch.full(
+        (batch_size, max_length), BOUNDARY_PADDING_ID, dtype=torch.long
+    )
     spaces = torch.zeros((batch_size, max_length), dtype=torch.bool)
     mask = torch.zeros((batch_size, max_length), dtype=torch.bool)
     has_labels = "labels" in items[0]

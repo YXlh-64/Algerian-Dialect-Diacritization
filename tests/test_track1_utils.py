@@ -11,6 +11,8 @@ import numpy as np
 
 from evaluation.track1.bilstm_cnn_crf.evaluate_bilstm_cnn_crf import (
     decode_ensemble,
+    edit_distance,
+    error_rate_metrics,
     metric_summary,
     score_record_predictions,
     vocalize,
@@ -22,17 +24,32 @@ try:
     import torch.nn.functional as F
 
     from models.track1.bilstm_cnn_crf.bilstm_cnn_crf_model import (
+        BiLSTMDiacritizer,
         class_balanced_focal_loss,
     )
-    from training.track1.bilstm_cnn_crf.data import DataSettings
-    from training.track1.bilstm_cnn_crf.engine import TrainingContext, run_training
+    from training.track1.bilstm_cnn_crf.data import (
+        DataSettings,
+        DiacritizationDataset,
+        collate_batch,
+    )
+    from training.track1.bilstm_cnn_crf.engine import (
+        TrainingContext,
+        initialize_model,
+        run_training,
+    )
+    from utils.track1.data import BOUNDARY_PADDING_ID
 except ImportError:  # Allows data/evaluation tests in environments without torch.
     torch = None
     F = None
+    BiLSTMDiacritizer = None
     class_balanced_focal_loss = None
     DataSettings = None
+    DiacritizationDataset = None
+    collate_batch = None
     TrainingContext = None
+    initialize_model = None
     run_training = None
+    BOUNDARY_PADDING_ID = None
 
 
 class RecordUtilityTests(unittest.TestCase):
@@ -59,6 +76,13 @@ class RecordUtilityTests(unittest.TestCase):
         self.assertEqual(int(counts[0]), 0)
         self.assertEqual(int(counts[1]), 2)
         self.assertEqual(int(counts[3]), 1)
+
+    def test_unlabeled_word_iteration_returns_none_labels(self) -> None:
+        record = {"chars": list("اب ج"), "input": "اب ج"}
+        self.assertEqual(
+            list(iter_words(record)),
+            [("اب", None, 0, 2), ("ج", None, 3, 4)],
+        )
 
     def test_validation_rejects_nonzero_space_label(self) -> None:
         records = [
@@ -97,6 +121,91 @@ class EvaluationUtilityTests(unittest.TestCase):
         )
         self.assertEqual(metric_summary([0, 1], [0, 1])["accuracy"], 1.0)
         self.assertEqual(vocalize(["ا"], [1]), "اَ")
+
+    def test_repository_error_rates_respect_word_finals(self) -> None:
+        records = [
+            {
+                "sent_id": "x",
+                "input": "اب ج",
+                "chars": list("اب ج"),
+                "labels": [1, 3, 0, 5],
+            }
+        ]
+        # Only the final letter of the first word is wrong.
+        predictions = [np.asarray([1, 7, 0, 5])]
+        metrics = error_rate_metrics(records, predictions)
+        self.assertEqual(metrics["DER"], 1 / 3)
+        self.assertEqual(metrics["WER"], 1 / 2)
+        self.assertEqual(metrics["DER_star"], 0.0)
+        self.assertEqual(metrics["WER_star"], 0.0)
+        self.assertGreater(metrics["CER"], 0.0)
+        self.assertEqual(edit_distance("abc", "adc"), 1)
+
+
+@unittest.skipIf(torch is None, "PyTorch is not installed")
+class PaddingAndInitializationTests(unittest.TestCase):
+    @staticmethod
+    def _config() -> SimpleNamespace:
+        return SimpleNamespace(
+            embedding_dim=8,
+            boundary_dim=3,
+            cnn_channels=4,
+            cnn_kernels=(3, 5),
+            model_dim=10,
+            hidden_dim=6,
+            lstm_layers=1,
+            mlp_dim=8,
+            dropout=0.0,
+            focal_gamma=1.5,
+            crf_aux_weight=0.5,
+            eval_batch_size=2,
+            seed=11,
+            amp=False,
+        )
+
+    def test_boundary_padding_is_reserved_and_batch_invariant(self) -> None:
+        vocabulary = {
+            "<PAD>": 0,
+            "<UNK>": 1,
+            "ا": 2,
+            "ب": 3,
+            "ج": 4,
+            " ": 5,
+        }
+        settings = DataSettings(vocabulary=vocabulary, pad_id=0, unk_id=1)
+        records = [
+            {"sent_id": "short", "chars": list("اب"), "labels": [1, 3]},
+            {
+                "sent_id": "long",
+                "chars": list("اب جاب"),
+                "labels": [1, 3, 0, 5, 1, 3],
+            },
+        ]
+        dataset = DiacritizationDataset(records, settings)
+        short_batch = collate_batch([dataset[0]], pad_id=settings.pad_id)
+        mixed_batch = collate_batch([dataset[0], dataset[1]], pad_id=settings.pad_id)
+        self.assertTrue(
+            torch.all(mixed_batch["boundaries"][0, 2:] == BOUNDARY_PADDING_ID)
+        )
+
+        torch.default_generator.manual_seed(7)
+        model = BiLSTMDiacritizer(
+            len(vocabulary), 16, True, False, self._config(), settings.pad_id
+        ).eval()
+        with torch.no_grad():
+            alone = model.emissions(short_batch)[0, :2]
+            mixed = model.emissions(mixed_batch)[0, :2]
+        torch.testing.assert_close(alone, mixed, rtol=1e-5, atol=1e-6)
+
+    def test_model_initialization_does_not_call_all_device_seed(self) -> None:
+        config = self._config()
+        vocabulary = {"<PAD>": 0, "<UNK>": 1, "ا": 2}
+        settings = DataSettings(vocabulary=vocabulary, pad_id=0, unk_id=1)
+        context = TrainingContext(config=config, data=settings, output_dir=Path("."))
+        spec = {"seed": 23, "use_cnn": True, "use_crf": True}
+        with patch("torch.manual_seed", side_effect=AssertionError("all-device seed")):
+            model = initialize_model(spec, torch.device("cpu"), context)
+        self.assertIsInstance(model, BiLSTMDiacritizer)
 
 
 @unittest.skipIf(torch is None, "PyTorch is not installed")
@@ -156,6 +265,13 @@ class TrainingLoopTests(unittest.TestCase):
             {"macro_f1_16": 0.4, "macro_f1_supported": 0.4, "accuracy": 0.4},
             {"macro_f1_16": 0.3, "macro_f1_supported": 0.3, "accuracy": 0.3},
         ]
+
+        def train_epoch_with_optimizer_step(
+            _model, _loader, optimizer, _scaler, _weights, _device, _context
+        ) -> float:
+            optimizer.step()
+            return 1.0
+
         with (
             patch(
                 "training.track1.bilstm_cnn_crf.engine.effective_number_weights",
@@ -163,7 +279,8 @@ class TrainingLoopTests(unittest.TestCase):
             ),
             patch("training.track1.bilstm_cnn_crf.engine.make_loader", return_value=[]),
             patch(
-                "training.track1.bilstm_cnn_crf.engine.train_epoch", return_value=1.0
+                "training.track1.bilstm_cnn_crf.engine.train_epoch",
+                side_effect=train_epoch_with_optimizer_step,
             ),
             patch(
                 "training.track1.bilstm_cnn_crf.engine.predict_records",

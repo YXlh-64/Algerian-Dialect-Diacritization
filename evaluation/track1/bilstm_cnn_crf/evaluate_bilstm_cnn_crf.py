@@ -5,7 +5,7 @@ from __future__ import annotations
 import itertools
 import sys
 from collections import Counter, defaultdict
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -69,9 +69,98 @@ def metric_summary(
     }
 
 
-def score_record_predictions(
+def edit_distance(reference: Sequence[Any], hypothesis: Sequence[Any]) -> int:
+    """Return Levenshtein distance using memory linear in the shorter input."""
+    if len(reference) < len(hypothesis):
+        reference, hypothesis = hypothesis, reference
+    previous = list(range(len(hypothesis) + 1))
+    for row, reference_item in enumerate(reference, start=1):
+        current = [row]
+        for column, hypothesis_item in enumerate(hypothesis, start=1):
+            current.append(
+                min(
+                    current[-1] + 1,
+                    previous[column] + 1,
+                    previous[column - 1] + (reference_item != hypothesis_item),
+                )
+            )
+        previous = current
+    return previous[-1]
+
+
+def error_rate_metrics(
     records: list[dict[str, Any]], predictions: list[np.ndarray]
+) -> dict[str, float | int]:
+    """Compute repository-standard CER/WER and aligned diacritic error rates.
+
+    CER is aggregate Unicode-codepoint edit distance over fully vocalized
+    sentences. DER and WER compare aligned label sequences at non-space
+    positions. Starred metrics exclude each multi-character word's final
+    position, matching the existing Track-3 convention; one-character words
+    therefore do not contribute to their denominators.
+    """
+    if len(records) != len(predictions):
+        raise ValueError("record and prediction counts differ")
+
+    character_edits = reference_characters = 0
+    diacritic_errors = diacritic_positions = 0
+    diacritic_errors_star = diacritic_positions_star = 0
+    word_errors = words = 0
+    word_errors_star = words_star = 0
+
+    for record, prediction in zip(records, predictions):
+        chars = record["chars"]
+        labels = record.get("labels")
+        if labels is None:
+            raise ValueError("error-rate metrics require labeled records")
+        if len(prediction) != len(chars):
+            raise ValueError("prediction length does not match record length")
+
+        reference_text = vocalize(chars, labels)
+        predicted_text = vocalize(chars, prediction)
+        character_edits += edit_distance(reference_text, predicted_text)
+        reference_characters += len(reference_text)
+
+        for _word, word_labels, start, end in iter_words(record):
+            if word_labels is None:
+                raise ValueError("word labels are required for error-rate metrics")
+            predicted_labels = tuple(int(label) for label in prediction[start:end])
+            errors = [
+                predicted != target
+                for predicted, target in zip(predicted_labels, word_labels)
+            ]
+            diacritic_positions += len(errors)
+            diacritic_errors += sum(errors)
+            words += 1
+            word_errors += int(any(errors))
+
+            if len(errors) > 1:
+                starred_errors = errors[:-1]
+                diacritic_positions_star += len(starred_errors)
+                diacritic_errors_star += sum(starred_errors)
+                words_star += 1
+                word_errors_star += int(any(starred_errors))
+
+    return {
+        "CER": character_edits / max(reference_characters, 1),
+        "WER": word_errors / max(words, 1),
+        "DER": diacritic_errors / max(diacritic_positions, 1),
+        "DER_star": diacritic_errors_star / max(diacritic_positions_star, 1),
+        "WER_star": word_errors_star / max(words_star, 1),
+        "n_vocalized_characters": reference_characters,
+        "n_words": words,
+        "n_diacritic_positions": diacritic_positions,
+    }
+
+
+def score_record_predictions(
+    records: list[dict[str, Any]],
+    predictions: list[np.ndarray],
+    *,
+    include_error_rates: bool = True,
 ) -> dict[str, Any]:
+    if len(records) != len(predictions):
+        raise ValueError("record and prediction counts differ")
     targets_flat, predictions_flat = [], []
     for record, prediction in zip(records, predictions):
         assert len(prediction) == len(record["chars"])
@@ -81,7 +170,10 @@ def score_record_predictions(
             if char != " ":
                 targets_flat.append(target)
                 predictions_flat.append(int(predicted))
-    return metric_summary(targets_flat, predictions_flat)
+    metrics = metric_summary(targets_flat, predictions_flat)
+    if include_error_rates:
+        metrics.update(error_rate_metrics(records, predictions))
+    return metrics
 
 
 def build_word_log_priors(
@@ -256,7 +348,9 @@ def tune_ensemble(
                     transition_strength=0.0,
                     sentence_memory=sentence_memory,
                 )
-                metrics = score_record_predictions(records, predictions)
+                metrics = score_record_predictions(
+                    records, predictions, include_error_rates=False
+                )
                 candidates.append(
                     {
                         "weights": weights,
@@ -287,7 +381,9 @@ def tune_ensemble(
                 transition_strength,
                 sentence_memory,
             )
-            metrics = score_record_predictions(records, predictions)
+            metrics = score_record_predictions(
+                records, predictions, include_error_rates=False
+            )
             structured.append(
                 {
                     **candidate,
