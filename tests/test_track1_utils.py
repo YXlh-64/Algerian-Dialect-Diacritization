@@ -11,11 +11,15 @@ import numpy as np
 
 from evaluation.track1.bilstm_cnn_crf.evaluate_bilstm_cnn_crf import (
     decode_ensemble,
-    edit_distance,
     error_rate_metrics,
     metric_summary,
     score_record_predictions,
     vocalize,
+)
+from utils.evaluation_metrics import (
+    aligned_word_error_metrics,
+    edit_distance,
+    word_level_metrics_from_predict_fn,
 )
 from utils.track1.data import iter_words, letter_label_counts, validate_records
 
@@ -134,12 +138,21 @@ class EvaluationUtilityTests(unittest.TestCase):
         # Only the final letter of the first word is wrong.
         predictions = [np.asarray([1, 7, 0, 5])]
         metrics = error_rate_metrics(records, predictions)
+        shared_metrics = aligned_word_error_metrics(records, predictions)
+        adapter_metrics = word_level_metrics_from_predict_fn(
+            lambda _chars: predictions[0], records
+        )
         self.assertEqual(metrics["DER"], 1 / 3)
         self.assertEqual(metrics["WER"], 1 / 2)
         self.assertEqual(metrics["DER_star"], 0.0)
         self.assertEqual(metrics["WER_star"], 0.0)
         self.assertGreater(metrics["CER"], 0.0)
         self.assertEqual(edit_distance("abc", "adc"), 1)
+        for key in ("DER", "WER", "DER_star", "WER_star"):
+            self.assertEqual(metrics[key], shared_metrics[key])
+            self.assertEqual(shared_metrics[key], adapter_metrics[key])
+        self.assertEqual(shared_metrics["sentence_exact_match"], 0.0)
+        self.assertEqual(shared_metrics["top_confusions"], [((3, 7), 1)])
 
 
 @unittest.skipIf(torch is None, "PyTorch is not installed")

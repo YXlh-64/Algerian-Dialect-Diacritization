@@ -78,6 +78,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 from models.track3.linear_head.linear_head_model import Track3Diacritizer
 from evaluation.track3.linear_head.evaluate_linear_head import Evaluator, print_eval_report
+from utils.evaluation_metrics import word_level_metrics_from_predict_fn
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 print("Device:", DEVICE)
@@ -575,81 +576,6 @@ def collate_fn(batch, pad_token_id: int):
     return {"input_ids": input_ids, "attention_mask": attn_mask, "char_ids": char_ids,
             "char_labels": char_labels, "token_idx_per_char": token_idx_per_char}
 
-
-
-from collections import defaultdict, Counter
-
-
-def word_level_metrics_from_predict_fn(predict_fn, records: List[dict]) -> Dict[str, Any]:
-    '''Word-level DER/WER plus sentence exact-match, per-class DER (char
-    error rate per diacritic class), and the most common (true, predicted)
-    confusion pairs -- for a richer error analysis than DER/WER alone.'''
-    total_chars = char_errors = 0
-    total_chars_star = char_errors_star = 0
-    total_words = word_errors = 0
-    total_words_star = word_errors_star = 0
-    n_sent = n_sent_exact = 0
-    class_total: Dict[int, int] = defaultdict(int)
-    class_errors: Dict[int, int] = defaultdict(int)
-    confusion_pairs: Counter = Counter()
-
-    for rec in records:
-        chars, labels = rec["chars"], rec["labels"]
-        preds = predict_fn(chars)
-
-        n_sent += 1
-        sent_ok = True
-        words, cur = [], []
-        for i, c in enumerate(chars):
-            if c == SPACE_CHAR:
-                if cur:
-                    words.append(cur)
-                cur = []
-                continue
-            t, p = labels[i], preds[i]
-            cur.append((p, t))
-            class_total[t] += 1
-            if p != t:
-                class_errors[t] += 1
-                confusion_pairs[(t, p)] += 1
-                sent_ok = False
-        if cur:
-            words.append(cur)
-        if sent_ok:
-            n_sent_exact += 1
-
-        for word in words:
-            if not word:
-                continue
-            n = len(word)
-            errs = [p != t for p, t in word]
-
-            total_chars += n
-            char_errors += sum(errs)
-            total_words += 1
-            word_errors += int(any(errs))
-
-            if n > 1:
-                total_chars_star += n - 1
-                char_errors_star += sum(errs[:-1])
-                total_words_star += 1
-                word_errors_star += int(any(errs[:-1]))
-            # single-letter words contribute nothing to the *-word count,
-            # matching the standard literature convention (nothing to exclude)
-
-    per_class_der = {c: class_errors[c] / class_total[c]
-                      for c in class_total if class_total[c] > 0}
-
-    return {
-        "DER": char_errors / max(total_chars, 1),
-        "DER_star": char_errors_star / max(total_chars_star, 1),
-        "WER": word_errors / max(total_words, 1),
-        "WER_star": word_errors_star / max(total_words_star, 1),
-        "sentence_exact_match": n_sent_exact / max(n_sent, 1),
-        "per_class_der": per_class_der,
-        "top_confusions": confusion_pairs.most_common(15),
-        "n_chars": total_chars, "n_words": total_words, "n_sentences": n_sent,
-    }
 
 
 # ## 7. Training Utilities

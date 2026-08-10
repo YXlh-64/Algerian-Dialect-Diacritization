@@ -5,7 +5,7 @@ from __future__ import annotations
 import itertools
 import sys
 from collections import Counter, defaultdict
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +16,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from utils.evaluation_metrics import aligned_word_error_metrics, edit_distance
 from utils.track1.data import NUM_LABELS, iter_words, letter_label_counts
 
 LABEL_TO_MARKS = {
@@ -69,25 +70,6 @@ def metric_summary(
     }
 
 
-def edit_distance(reference: Sequence[Any], hypothesis: Sequence[Any]) -> int:
-    """Return Levenshtein distance using memory linear in the shorter input."""
-    if len(reference) < len(hypothesis):
-        reference, hypothesis = hypothesis, reference
-    previous = list(range(len(hypothesis) + 1))
-    for row, reference_item in enumerate(reference, start=1):
-        current = [row]
-        for column, hypothesis_item in enumerate(hypothesis, start=1):
-            current.append(
-                min(
-                    current[-1] + 1,
-                    previous[column] + 1,
-                    previous[column - 1] + (reference_item != hypothesis_item),
-                )
-            )
-        previous = current
-    return previous[-1]
-
-
 def error_rate_metrics(
     records: list[dict[str, Any]], predictions: list[np.ndarray]
 ) -> dict[str, float | int]:
@@ -103,10 +85,7 @@ def error_rate_metrics(
         raise ValueError("record and prediction counts differ")
 
     character_edits = reference_characters = 0
-    diacritic_errors = diacritic_positions = 0
-    diacritic_errors_star = diacritic_positions_star = 0
-    word_errors = words = 0
-    word_errors_star = words_star = 0
+    word_metrics = aligned_word_error_metrics(records, predictions)
 
     for record, prediction in zip(records, predictions):
         chars = record["chars"]
@@ -121,35 +100,15 @@ def error_rate_metrics(
         character_edits += edit_distance(reference_text, predicted_text)
         reference_characters += len(reference_text)
 
-        for _word, word_labels, start, end in iter_words(record):
-            if word_labels is None:
-                raise ValueError("word labels are required for error-rate metrics")
-            predicted_labels = tuple(int(label) for label in prediction[start:end])
-            errors = [
-                predicted != target
-                for predicted, target in zip(predicted_labels, word_labels)
-            ]
-            diacritic_positions += len(errors)
-            diacritic_errors += sum(errors)
-            words += 1
-            word_errors += int(any(errors))
-
-            if len(errors) > 1:
-                starred_errors = errors[:-1]
-                diacritic_positions_star += len(starred_errors)
-                diacritic_errors_star += sum(starred_errors)
-                words_star += 1
-                word_errors_star += int(any(starred_errors))
-
     return {
         "CER": character_edits / max(reference_characters, 1),
-        "WER": word_errors / max(words, 1),
-        "DER": diacritic_errors / max(diacritic_positions, 1),
-        "DER_star": diacritic_errors_star / max(diacritic_positions_star, 1),
-        "WER_star": word_errors_star / max(words_star, 1),
+        "WER": word_metrics["WER"],
+        "DER": word_metrics["DER"],
+        "DER_star": word_metrics["DER_star"],
+        "WER_star": word_metrics["WER_star"],
         "n_vocalized_characters": reference_characters,
-        "n_words": words,
-        "n_diacritic_positions": diacritic_positions,
+        "n_words": word_metrics["n_words"],
+        "n_diacritic_positions": word_metrics["n_chars"],
     }
 
 
