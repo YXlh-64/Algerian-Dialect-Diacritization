@@ -1,3 +1,4 @@
+# Ines — Track 4 dual-stream CRF head, Strategy A.
 run_id: dscat_base_v1
 num_labels: 16
 max_seq_len: 512

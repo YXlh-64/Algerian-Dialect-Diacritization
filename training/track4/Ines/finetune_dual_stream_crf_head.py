@@ -1,6 +1,6 @@
-# training/track4/dual_stream_crf_head/finetune_dual_stream_crf_head.py
+# training/track4/Ines/finetune_dual_stream_crf_head.py
 #
-# Training + inference script for Track4 / dual_stream_crf_head, split out
+# Training + inference script for Track 4 / Ines, split out
 # of the Kaggle notebook. Follows the same repo-root import pattern as
 # training/track3/*/finetune_*.py.
 
@@ -9,6 +9,7 @@ import sys
 import json
 import glob
 import math
+import random
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -23,8 +24,8 @@ from tqdm import tqdm
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
-from models.track4.dual_stream_crf_head.dual_stream_crf_head_model import Track4DualStreamCRF
-from evaluation.track4.dual_stream_crf_head.evaluate_dual_stream_crf_head import (
+from models.track4.Ines.dual_stream_crf_head_model import Track4DualStreamCRF
+from evaluation.track4.Ines.evaluate_dual_stream_crf_head import (
     Evaluator, word_level_metrics_from_predict_fn,
 )
 
@@ -59,8 +60,19 @@ class Config:
     max_epochs: int = 25
     early_stopping_patience: int = 10
     grad_clip: float = 1.0
+    seed: int = 42
 
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
+
+
+def seed_everything(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = True
 
 
 # ---------------------------------------------------------------------------
@@ -188,15 +200,13 @@ def train(cfg, char2id):
     device = cfg.device
     pad_id = len(char2id)
     vocab_size = len(char2id) + 1
-    space_id = char2id[" "]
-
     train_loader, dev_loader = build_dataloaders(cfg, char2id, pad_id)
 
     model = Track4DualStreamCRF(
         vocab_size=vocab_size, num_labels=cfg.num_labels, dim=cfg.dim, n_heads=cfg.n_heads,
         local_layers=cfg.local_layers, global_layers=cfg.global_layers, final_layers=cfg.final_layers,
         local_window=cfg.local_window, dropout=cfg.dropout, max_seq_len=cfg.max_seq_len,
-        space_id=space_id,
+        unscored_label_id=0,
     ).to(device)
 
     opt = torch.optim.AdamW(model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay)
@@ -324,14 +334,12 @@ def run_inference(cfg, char2id, checkpoint_path):
     device = cfg.device
     pad_id = len(char2id)
     vocab_size = len(char2id) + 1
-    space_id = char2id[" "]
-
     ckpt = torch.load(checkpoint_path, map_location=device, weights_only=False)
     model = Track4DualStreamCRF(
         vocab_size=vocab_size, num_labels=cfg.num_labels, dim=cfg.dim, n_heads=cfg.n_heads,
         local_layers=cfg.local_layers, global_layers=cfg.global_layers, final_layers=cfg.final_layers,
         local_window=cfg.local_window, dropout=cfg.dropout, max_seq_len=cfg.max_seq_len,
-        space_id=space_id,
+        unscored_label_id=0,
     ).to(device)
     model.load_state_dict(ckpt["model_state"])
     model.eval()
@@ -392,19 +400,24 @@ def find_data_root(search_root="/kaggle/input", vocab_filename="vocab.json"):
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
-if __name__ == "__main__":
+def main(argv=None):
     import argparse
     _parser = argparse.ArgumentParser()
     _parser.add_argument("--data-root", type=str, default=None,
                           help="Override auto-discovered data root")
     _parser.add_argument("--epochs", type=int, default=None,
                           help="Override cfg.max_epochs")
-    _args, _ = _parser.parse_known_args()
+    _parser.add_argument("--seed", type=int, default=None,
+                          help="Override the deterministic random seed")
+    _args = _parser.parse_args(argv)
 
     cfg = Config()
     cfg.data_root = _args.data_root or find_data_root()
     if _args.epochs:
         cfg.max_epochs = _args.epochs
+    if _args.seed is not None:
+        cfg.seed = _args.seed
+    seed_everything(cfg.seed)
     os.makedirs(cfg.out_dir, exist_ok=True)
     print("device:", cfg.device)
     print("using data_root:", cfg.data_root)
@@ -420,7 +433,7 @@ if __name__ == "__main__":
     submission_csv_path = os.path.join(cfg.out_dir, "submission.csv")
     result = subprocess.run(
         [
-            "python", os.path.join(test_dir, "make_submission.py"),
+            sys.executable, os.path.join(test_dir, "make_submission.py"),
             "--ids", os.path.join(test_dir, "raw_sentences_test_ids.txt"),
             "--input", os.path.join(test_dir, "raw_sentences_test.txt"),
             "--pred", submission_txt_path,
@@ -437,3 +450,8 @@ if __name__ == "__main__":
     sub = pd.read_csv(submission_csv_path)
     print("submission rows:", len(sub))
     print(sub.head())
+    return submission_csv_path
+
+
+if __name__ == "__main__":
+    main()

@@ -12,7 +12,7 @@ from pathlib import Path
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
-from models.track4.dual_stream_crf_head.dual_stream_crf_head_model import (
+from models.track4.Ines.dual_stream_crf_head_model import (
     Track4DualStreamCRF, majority_vote_decode,
 )
 
@@ -142,7 +142,7 @@ def word_level_metrics_from_predict_fn(predict_fn, records: List[dict]) -> Dict:
 
 # ---------------------------------------------------------------------------
 # Standalone CLI: evaluate a saved checkpoint without re-running training.
-#   python evaluation/track4/dual_stream_crf_head/evaluate_dual_stream_crf_head.py \
+#   python evaluation/track4/Ines/evaluate_dual_stream_crf_head.py \
 #       --checkpoint working/dscat_best.pt
 # ---------------------------------------------------------------------------
 def _find_data_root(explicit: Optional[str]) -> Path:
@@ -164,7 +164,7 @@ def main():
     parser.add_argument("--data-dir", type=str, default=None)
     args = parser.parse_args()
 
-    from training.track4.dual_stream_crf_head.finetune_dual_stream_crf_head import (
+    from training.track4.Ines.finetune_dual_stream_crf_head import (
         Config, load_vocab, build_dataloaders, make_collate_fn,
     )
 
@@ -180,13 +180,11 @@ def main():
     char2id = load_vocab(str(data_root / "vocab.json"))
     pad_id = len(char2id)
     vocab_size = len(char2id) + 1
-    space_id = char2id[" "]
-
     model = Track4DualStreamCRF(
         vocab_size=vocab_size, num_labels=cfg.num_labels, dim=cfg.dim, n_heads=cfg.n_heads,
         local_layers=cfg.local_layers, global_layers=cfg.global_layers, final_layers=cfg.final_layers,
         local_window=cfg.local_window, dropout=cfg.dropout, max_seq_len=cfg.max_seq_len,
-        space_id=space_id,
+        unscored_label_id=0,
     ).to(cfg.device)
     model.load_state_dict(ckpt["model_state"])
     model.eval()

@@ -1,3 +1,5 @@
+"""Ines's dual-stream RoPE Transformer with a letter-only CRF head."""
+
 import math
 import torch
 import torch.nn as nn
@@ -150,8 +152,11 @@ class CRF(nn.Module):
 
     def forward(self, emissions, tags, mask):
         '''Negative log-likelihood. emissions:(B,T,K) tags:(B,T) mask:(B,T) bool prefix-style.'''
-        gold = self._score(emissions, tags, mask)
-        logZ = self._partition(emissions, mask)
+        nonempty = mask.any(dim=1)
+        if not nonempty.any():
+            return emissions.sum() * 0.0
+        gold = self._score(emissions[nonempty], tags[nonempty], mask[nonempty])
+        logZ = self._partition(emissions[nonempty], mask[nonempty])
         return (logZ - gold).mean()
 
     def _score(self, emissions, tags, mask):
@@ -247,9 +252,12 @@ class Track4DualStreamCRF(nn.Module):
 
     def __init__(self, vocab_size, num_labels, dim=256, n_heads=8,
                  local_layers=6, global_layers=4, final_layers=2,
-                 local_window=16, dropout=0.15, max_seq_len=512, space_id=0):
+                 local_window=16, dropout=0.15, max_seq_len=512,
+                 unscored_label_id=0):
         super().__init__()
-        self.space_id = space_id
+        if not 0 <= unscored_label_id < num_labels:
+            raise ValueError("unscored_label_id must be a valid label id")
+        self.unscored_label_id = unscored_label_id
         self.embed = nn.Embedding(vocab_size, dim)
 
         self.local_blocks = nn.ModuleList([
@@ -298,14 +306,19 @@ class Track4DualStreamCRF(nn.Module):
 
     @torch.no_grad()
     def predict(self, char_ids, pad_mask, is_space):
-        '''Full-length prediction: (B,T) tag ids, spaces/pads filled with space_id.'''
+        '''Full-length prediction with spaces/pads set to the unscored label.'''
         logits = self.encode(char_ids, pad_mask)
         letter_mask = (~pad_mask) & (~is_space)
         B, T = char_ids.shape
         dummy_tags = torch.zeros_like(char_ids)
         ce, _, cm, orig_idx, lengths = gather_letters(logits, dummy_tags, letter_mask)
         paths = self.crf.decode(ce, cm)
-        full_pred = torch.full((B, T), self.space_id, dtype=torch.long, device=char_ids.device)
+        full_pred = torch.full(
+            (B, T),
+            self.unscored_label_id,
+            dtype=torch.long,
+            device=char_ids.device,
+        )
         for b in range(B):
             L = lengths[b].item()
             if L == 0:
