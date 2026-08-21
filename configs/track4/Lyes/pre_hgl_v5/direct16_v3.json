@@ -1,0 +1,24 @@
+{
+  "seed": 42,
+  "model": {
+    "architecture": "conv_local_transformer",
+    "d_model": 256,
+    "num_layers": 6,
+    "num_heads": 8,
+    "ffn_dim": 1024,
+    "dropout": 0.15,
+    "max_length": 512,
+    "attention_window": 64,
+    "conv_kernels": [3, 5, 7],
+    "factorized_head": false,
+    "head_mode": "direct",
+    "global_attention_every": 0,
+    "guided_label_training": false,
+    "guided_schedule": "none",
+    "guided_mask_steps": 10,
+    "word_num_layers": 2,
+    "word_ffn_dim": 512,
+    "max_word_length": 32
+  },
+  "output_dir": "outputs/pre_hgl_v5/03_direct16/seed_42"
+}

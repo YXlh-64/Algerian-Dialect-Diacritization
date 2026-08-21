@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "output_root": "outputs/architecture_v10",
+  "snapshot": {
+    "checkpoints": [
+      "outputs/dziriformer_dual_rope_crf_v7_seed42/best.pt",
+      "outputs/dziriformer_dual_rope_crf_v7_seed42/last.pt"
+    ],
+    "control_v2_correct": 14962,
+    "minimum_correct_gain": 10,
+    "production_correct": 14977
+  }
+}

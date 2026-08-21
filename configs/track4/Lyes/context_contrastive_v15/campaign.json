@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "output_root": "outputs/context_contrastive_v15",
+  "oracle_selection": "outputs/filtered_word_lattice_v14/00_oracle/ORACLE_SELECTION.json",
+  "released_train": "Data/train_data/train_Algerian-DIAC.jsonl",
+  "released_dev": "Data/dev_data/dev_Algerian-DIAC.jsonl",
+  "v7_full_checkpoint": "outputs/dziriformer_dual_rope_crf_v7_seed42/best.pt",
+  "v7_campaign": "configs/track4/Lyes/campaign.json",
+  "v2_gates": "dziri_fusion_gated_v2/gates.json",
+  "splits": {
+    "a": {
+      "train": "outputs/rdrop_emission_v13/00_splits/split_a/train.jsonl",
+      "calibration": "outputs/rdrop_emission_v13/00_splits/split_a/calibration.jsonl",
+      "checkpoint": "outputs/rdrop_emission_v13/01_split_a/lambda_0/best.pt"
+    },
+    "b": {
+      "train": "outputs/rdrop_emission_v13/00_splits/split_b/train.jsonl",
+      "calibration": "outputs/rdrop_emission_v13/00_splits/split_b/calibration.jsonl",
+      "checkpoint": "outputs/rdrop_emission_v13/02_split_b/lambda_0/best.pt"
+    }
+  },
+  "auxiliary_coefficients": [0.1, 0.3, 1.0],
+  "model": {
+    "gate_hidden_dim": 256
+  },
+  "training": {
+    "epochs": 15,
+    "batch_size": 16,
+    "gradient_accumulation_steps": 2,
+    "learning_rate": 0.0001,
+    "weight_decay": 0.01,
+    "one_cycle_pct_start": 0.3,
+    "one_cycle_div_factor": 25.0,
+    "one_cycle_final_div_factor": 10000.0,
+    "gradient_clip_norm": 1.0,
+    "seed": 42,
+    "num_workers": 0
+  },
+  "final_gate": {
+    "minimum_neural_correct_gain": 15,
+    "minimum_v2_correct_gain": 10,
+    "minimum_ensemble_v2_correct": 14987
+  }
+}

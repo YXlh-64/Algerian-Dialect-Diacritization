@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "output_root": "outputs/dual_rope_v9",
+  "production_groups": [
+    {
+      "name": "DualRoPE-CRF-v7-seed42",
+      "checkpoints": [
+        "outputs/dziriformer_dual_rope_crf_v7_seed42/best.pt"
+      ]
+    },
+    {
+      "name": "DualRoPE-CE-v6-three-seed-mean",
+      "checkpoints": [
+        "outputs/dziriformer_dual_rope_ce_v6_seed42/best.pt",
+        "outputs/dziriformer_dual_rope_ce_v6_seed43/best.pt",
+        "outputs/dziriformer_dual_rope_ce_v6_seed44/best.pt"
+      ]
+    },
+    {
+      "name": "HGL-v4-three-seed-mean",
+      "checkpoints": [
+        "outputs/pre_hgl_v5/07_hgl/seed_42/best.pt",
+        "outputs/pre_hgl_v5/07_hgl/seed_43/best.pt",
+        "outputs/pre_hgl_v5/07_hgl/seed_44/best.pt"
+      ]
+    },
+    {
+      "name": "Legacy-five-model-mean",
+      "checkpoints": [
+        "outputs/conv_local_seed42/best.pt",
+        "outputs/dziriformer_j16_gated_v3_seed42/best.pt",
+        "outputs/dziriformer_gl_v3_seed42/best.pt",
+        "outputs/dziriformer_mixed_v3_seed42/best.pt",
+        "outputs/dziriformer_hier_v4_seed42/best.pt"
+      ]
+    }
+  ],
+  "calibration": {
+    "fold_count": 5,
+    "fold_seed": 942,
+    "expected_baseline_correct": 14977,
+    "minimum_correct_gain": 10,
+    "minimum_improved_folds": 4,
+    "maximum_regressed_folds": 0,
+    "lexical_smoothing": 0.01
+  }
+}

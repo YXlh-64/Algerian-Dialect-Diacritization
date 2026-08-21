@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "output_root": "outputs/pre_hgl_v5",
+  "seeds": [42, 43, 44],
+  "uniform_checkpoints": {
+    "base": "outputs/conv_local_seed42/best.pt",
+    "j16": "outputs/dziriformer_j16_gated_v3_seed42/best.pt",
+    "gl": "outputs/dziriformer_gl_v3_seed42/best.pt",
+    "mixed": "outputs/dziriformer_mixed_v3_seed42/best.pt",
+    "hier": "outputs/dziriformer_hier_v4_seed42/best.pt"
+  },
+  "experiments": {
+    "hier_mixed": "configs/track4/Lyes/pre_hgl_v5/hier_mixed_v4.json",
+    "direct16": "configs/track4/Lyes/pre_hgl_v5/direct16_v3.json",
+    "gl_curriculum": "configs/track4/Lyes/pre_hgl_v5/gl_curriculum_v4.json",
+    "hgl": "configs/track4/Lyes/pre_hgl_v5/hgl_v4.json"
+  },
+  "gates": {
+    "hier_mixed_control_correct": 14611,
+    "direct16_control_correct": 14585,
+    "gl_curriculum_control_correct": 14585,
+    "uniform_fused_correct": 14935
+  },
+  "oof_folds": 5,
+  "execution": {
+    "run_oof_gate": false,
+    "oof_deferred_reason": "Deferred after 17 of 25 completed architecture-fold trainings because sustained MPS thermal throttling expanded runtime beyond the campaign deadline. No incomplete OOF gate is fitted or reported as a valid result."
+  }
+}

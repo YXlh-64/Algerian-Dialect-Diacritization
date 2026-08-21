@@ -1,0 +1,39 @@
+{
+  "seed": 42,
+  "data": {
+    "train": "Data/train_data/train_Algerian-DIAC.jsonl",
+    "dev": "Data/dev_data/dev_Algerian-DIAC.jsonl",
+    "vocab": "Data/vocab.json"
+  },
+  "model": {
+    "architecture": "conv_local_transformer",
+    "d_model": 256,
+    "num_layers": 6,
+    "num_heads": 8,
+    "ffn_dim": 1024,
+    "dropout": 0.15,
+    "max_length": 512,
+    "attention_window": 64,
+    "conv_kernels": [
+      3,
+      5,
+      7
+    ],
+    "factorized_head": true
+  },
+  "training": {
+    "epochs": 60,
+    "batch_size": 64,
+    "learning_rate": 0.0003,
+    "weight_decay": 0.01,
+    "warmup_fraction": 0.05,
+    "gradient_clip_norm": 1.0,
+    "gradient_accumulation_steps": 1,
+    "shadda_loss_weight": 1.0,
+    "early_stopping_patience": 10,
+    "num_workers": 2,
+    "amp": true,
+    "device": "auto"
+  },
+  "output_dir": "outputs/dziri_fusion_v1_seed42"
+}
