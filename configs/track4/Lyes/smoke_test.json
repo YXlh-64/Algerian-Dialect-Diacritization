@@ -1,0 +1,38 @@
+{
+  "seed": 7,
+  "data": {
+    "train": "Data/train_data/train_Algerian-DIAC.jsonl",
+    "dev": "Data/dev_data/dev_Algerian-DIAC.jsonl",
+    "vocab": "Data/vocab.json"
+  },
+  "model": {
+    "architecture": "conv_local_transformer",
+    "d_model": 32,
+    "num_layers": 2,
+    "num_heads": 4,
+    "ffn_dim": 64,
+    "dropout": 0.0,
+    "max_length": 512,
+    "attention_window": 32,
+    "conv_kernels": [
+      3,
+      5
+    ],
+    "factorized_head": true
+  },
+  "training": {
+    "epochs": 1,
+    "batch_size": 256,
+    "learning_rate": 0.001,
+    "weight_decay": 0.0,
+    "warmup_fraction": 0.0,
+    "gradient_clip_norm": 1.0,
+    "gradient_accumulation_steps": 1,
+    "shadda_loss_weight": 1.0,
+    "early_stopping_patience": 1,
+    "num_workers": 0,
+    "amp": false,
+    "device": "cpu"
+  },
+  "output_dir": "outputs/smoke_test"
+}

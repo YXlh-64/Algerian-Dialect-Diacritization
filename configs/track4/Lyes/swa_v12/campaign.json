@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "output_root": "outputs/swa_v12",
+  "systems": {
+    "crf_v7": {
+      "system_name": "DziriFormer-DualRoPE-CRF-v7-SWA-tail-v12",
+      "artifact_prefix": "DZIRIFORMER_DUALROPE_CRF_V7_SWA_TAIL_V12",
+      "source_checkpoint": "outputs/dziriformer_dual_rope_crf_v7_seed42/best.pt",
+      "probe_checkpoints": [
+        "outputs/dziriformer_dual_rope_crf_v7_seed42/best.pt",
+        "outputs/dziriformer_dual_rope_crf_v7_seed42/last.pt"
+      ],
+      "tail_epochs": 8,
+      "maximum_tail_epochs": 12,
+      "batch_size": 64,
+      "num_workers": 0,
+      "baseline": {
+        "neural_correct": 14816,
+        "v2_correct": 14962,
+        "v2_word_accuracy": 0.8129198966408269,
+        "v2_sentence_accuracy": 0.3525535420098847,
+        "v2_shadda_accuracy": 0.9857834811599673,
+        "v2_tanween_accuracy": 0.9998741900987608,
+        "minimum_correct_gain": 10
+      }
+    },
+    "boundary_crf_v8": {
+      "system_name": "DziriFormer-DualRoPE-BoundaryCRF-v8-SWA-tail-v12",
+      "artifact_prefix": "DZIRIFORMER_DUALROPE_BOUNDARY_CRF_V8_SWA_TAIL_V12",
+      "source_checkpoint": "outputs/dziriformer_dual_rope_boundary_crf_v8_seed42/best.pt",
+      "probe_checkpoints": [
+        "outputs/dziriformer_dual_rope_boundary_crf_v8_seed42/best.pt",
+        "outputs/dziriformer_dual_rope_boundary_crf_v8_seed42/last.pt"
+      ],
+      "tail_epochs": 8,
+      "maximum_tail_epochs": 12,
+      "batch_size": 64,
+      "num_workers": 0,
+      "baseline": {
+        "neural_correct": 14837,
+        "v2_correct": 14977,
+        "v2_word_accuracy": 0.8131782945736434,
+        "v2_sentence_accuracy": 0.35914332784184516,
+        "v2_shadda_accuracy": 0.9864125306661634,
+        "v2_tanween_accuracy": 0.9998741900987608,
+        "minimum_correct_gain": 10
+      }
+    }
+  }
+}

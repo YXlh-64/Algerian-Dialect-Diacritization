@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "base_config": "configs/track4/Lyes/model.json",
+  "train_data": "Data/train_data/train_Algerian-DIAC.jsonl",
+  "released_dev_data": "Data/dev_data/dev_Algerian-DIAC.jsonl",
+  "vocab": "Data/vocab.json",
+  "v2_gates": "dziri_fusion_gated_v2/gates.json",
+  "v7_campaign": "configs/track4/Lyes/campaign.json",
+  "output_root": "outputs/rdrop_emission_v13",
+  "rdrop_distribution": "emission",
+  "training_overrides": {
+    "batch_size": 32,
+    "gradient_accumulation_steps": 2
+  },
+  "split_count": 5,
+  "split_seeds": {
+    "a": 1301,
+    "b": 1302
+  },
+  "coefficients": [0.0, 0.1, 0.3, 1.0],
+  "calibration": {
+    "minimum_split_a_correct_gain": 5,
+    "minimum_mean_correct_gain": 5
+  },
+  "final_acceptance": {
+    "minimum_neural_correct_gain": 15,
+    "minimum_v2_correct_gain": 10,
+    "minimum_ensemble_v2_correct": 14987
+  }
+}

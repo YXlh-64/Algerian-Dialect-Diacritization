@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "system_name": "DziriFusion-Gated-v2",
+  "artifact_prefix": "DZIRIFUSION_GATED_V2",
+  "confidence_measure": "max_softmax_probability",
+  "neural_confidence_threshold": 0.99,
+  "lexical_confidence_threshold": 0.6,
+  "lexical_smoothing": 0.01
+}

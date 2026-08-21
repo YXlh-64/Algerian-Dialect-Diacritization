@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "output_root": "outputs/dual_rope_v7",
+  "dual_seed_checkpoints": {
+    "42": "outputs/dziriformer_dual_rope_ce_v6_seed42/best.pt",
+    "43": "outputs/dziriformer_dual_rope_ce_v6_seed43/best.pt",
+    "44": "outputs/dziriformer_dual_rope_ce_v6_seed44/best.pt"
+  },
+  "crf_checkpoint": "outputs/dziriformer_dual_rope_crf_v7_seed42/best.pt",
+  "hgl_checkpoints": [
+    "outputs/pre_hgl_v5/07_hgl/seed_42/best.pt",
+    "outputs/pre_hgl_v5/07_hgl/seed_43/best.pt",
+    "outputs/pre_hgl_v5/07_hgl/seed_44/best.pt"
+  ],
+  "legacy_ensemble_checkpoints": [
+    "outputs/conv_local_seed42/best.pt",
+    "outputs/dziriformer_j16_gated_v3_seed42/best.pt",
+    "outputs/dziriformer_gl_v3_seed42/best.pt",
+    "outputs/dziriformer_mixed_v3_seed42/best.pt",
+    "outputs/dziriformer_hier_v4_seed42/best.pt"
+  ],
+  "acceptance": {
+    "seed42_equal_system_v2_correct": 14957,
+    "dual_multiseed_must_exceed_correct": 14946,
+    "multiseed_must_exceed_correct": 14957,
+    "crf_neural_must_exceed_correct": 14764,
+    "crf_v2_must_exceed_correct": 14957,
+    "crf_final_must_exceed_correct": 14962
+  }
+}

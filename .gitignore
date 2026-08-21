@@ -5,6 +5,8 @@
 *.csv
 *.json
 *.jsonl
+!configs/track4/Lyes/*.json
+!configs/track4/Lyes/**/*.json
 data/
 
 # run_pipeline.py's local state markers -- machine-specific, never track these

@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "output_root": "outputs/filtered_word_lattice_v14",
+  "v7_config": "configs/track4/Lyes/model.json",
+  "v7_full_checkpoint": "outputs/dziriformer_dual_rope_crf_v7_seed42/best.pt",
+  "v7_campaign": "configs/track4/Lyes/campaign.json",
+  "v2_gates": "dziri_fusion_gated_v2/gates.json",
+  "released_train": "Data/train_data/train_Algerian-DIAC.jsonl",
+  "released_dev": "Data/dev_data/dev_Algerian-DIAC.jsonl",
+  "splits": {
+    "a": {
+      "train": "outputs/rdrop_emission_v13/00_splits/split_a/train.jsonl",
+      "calibration": "outputs/rdrop_emission_v13/00_splits/split_a/calibration.jsonl",
+      "checkpoint": "outputs/rdrop_emission_v13/01_split_a/lambda_0/best.pt"
+    },
+    "b": {
+      "train": "outputs/rdrop_emission_v13/00_splits/split_b/train.jsonl",
+      "calibration": "outputs/rdrop_emission_v13/00_splits/split_b/calibration.jsonl",
+      "checkpoint": "outputs/rdrop_emission_v13/02_split_b/lambda_0/best.pt"
+    }
+  },
+  "candidate_counts": [4, 8],
+  "oracle_gate": {
+    "minimum_recoverable_letters": 20,
+    "minimum_recoverable_exact_words": 10
+  },
+  "scorer": {
+    "context_dim": 256,
+    "d_model": 128,
+    "num_heads": 4,
+    "ffn_dim": 256,
+    "dropout": 0.1
+  },
+  "training": {
+    "epochs": 20,
+    "batch_size_words": 128,
+    "learning_rate": 0.0003,
+    "weight_decay": 0.01,
+    "gradient_clip_norm": 1.0,
+    "seed": 42
+  },
+  "calibration_gate": {
+    "minimum_mean_correct_letters": 10,
+    "minimum_mean_exact_words": 10
+  },
+  "final_gate": {
+    "minimum_correct_letters": 10,
+    "minimum_exact_words": 10,
+    "minimum_ensemble_v2_correct": 14987
+  }
+}

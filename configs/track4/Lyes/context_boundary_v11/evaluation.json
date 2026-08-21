@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "checkpoint": "outputs/context_boundary_v11/01_seed42/best.pt",
+  "output_dir": "outputs/context_boundary_v11/02_evaluation",
+  "system_name": "DziriFormer-DualRoPE-ContextLowRankBoundaryCRF-v11-seed42",
+  "artifact_prefix": "DZIRIFORMER_DUALROPE_CONTEXT_LOWRANK_BOUNDARY_CRF_V11_SEED42",
+  "expected_head_mode": "context_low_rank_boundary_crf",
+  "controls": {
+    "neural_correct": 14816,
+    "minimum_neural_gain": 15,
+    "neural_oov_correct": 2745,
+    "neural_word_correct": 3039,
+    "neural_shadda_accuracy": 0.9832043781845631,
+    "maximum_shadda_regression": 0.001,
+    "neural_tanween_accuracy": 0.9998741900987608,
+    "maximum_tanween_regression": 0.0001,
+    "production_v2_correct": 14977
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "output_dir": "audits/model_assisted_v2",
+  "v2_gates": "dziri_fusion_gated_v2/gates.json",
+  "scopes": [
+    {
+      "name": "full_train_in_sample",
+      "train": "Data/train_data/train_Algerian-DIAC.jsonl",
+      "evaluation": "Data/train_data/train_Algerian-DIAC.jsonl",
+      "v7_checkpoint": "outputs/dziriformer_dual_rope_crf_v7_seed42/best.pt",
+      "v13_checkpoint": "outputs/rdrop_emission_v13/03_final_seed42/rdrop_lambda_1/best.pt",
+      "held_out": false
+    },
+    {
+      "name": "split_a_heldout",
+      "train": "outputs/rdrop_emission_v13/00_splits/split_a/train.jsonl",
+      "evaluation": "outputs/rdrop_emission_v13/00_splits/split_a/calibration.jsonl",
+      "v7_checkpoint": "outputs/rdrop_emission_v13/01_split_a/lambda_0/best.pt",
+      "v13_checkpoint": "outputs/rdrop_emission_v13/01_split_a/lambda_1/best.pt",
+      "held_out": true
+    },
+    {
+      "name": "split_b_heldout",
+      "train": "outputs/rdrop_emission_v13/00_splits/split_b/train.jsonl",
+      "evaluation": "outputs/rdrop_emission_v13/00_splits/split_b/calibration.jsonl",
+      "v7_checkpoint": "outputs/rdrop_emission_v13/02_split_b/lambda_0/best.pt",
+      "v13_checkpoint": "outputs/rdrop_emission_v13/02_split_b/lambda_1/best.pt",
+      "held_out": true
+    }
+  ],
+  "review_top_n": 50
+}
