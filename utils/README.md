@@ -9,6 +9,11 @@ Planned utility areas include:
 - Diacritic-aware text preprocessing helpers.
 - W&B logging and run metadata utilities.
 
+Implemented shared utilities:
+
+- `evaluation_metrics.py`: aligned DER/WER/DER*/WER* computation used by
+  Track 1 and Track 3.
+
 ## Naming Convention
 Use utility-domain names for future modules, for example:
 - text_*

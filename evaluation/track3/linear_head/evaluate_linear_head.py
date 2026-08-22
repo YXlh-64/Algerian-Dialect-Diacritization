@@ -15,96 +15,26 @@ import sympy
 import sympy.printing  # noqa: F401  -- registers sympy.printing before torch needs it
 import transformers
 import importlib
-import sympy.printing  # noqa: F401
 import sklearn
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 from transformers import AutoTokenizer, AutoModel, get_linear_schedule_with_warmup
 from sklearn.metrics import f1_score, precision_recall_fscore_support, confusion_matrix, classification_report
-from collections import defaultdict, Counter
 import subprocess
 
-# Recomputed/duplicated independently rather than imported from training/ --
-# avoids a training<->evaluation circular import. Evaluator.evaluate() below
-# needs these in THIS module's namespace, since Python resolves a method's
-# free variables against the module it's defined in, not the caller's
-# globals. DEVICE and IGNORE_INDEX are deterministic, so duplication is
-# safe; word_level_metrics_from_predict_fn is duplicated verbatim from
-# training/track3/linear_head/finetune_linear_head.py (Section 5) -- it's
-# pure (only touches SPACE_CHAR + stdlib), so both copies always agree.
+# Repo root is 4 levels up from this file:
+# evaluation/track3/linear_head/<this file>.
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from utils.evaluation_metrics import word_level_metrics_from_predict_fn
+
+# These deterministic evaluator constants remain local to avoid a
+# training/evaluation circular import.
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 IGNORE_INDEX = -100
 SPACE_CHAR = " "
-
-
-def word_level_metrics_from_predict_fn(predict_fn, records: List[dict]) -> Dict[str, Any]:
-    '''Word-level DER/WER plus sentence exact-match, per-class DER (char
-    error rate per diacritic class), and the most common (true, predicted)
-    confusion pairs -- for a richer error analysis than DER/WER alone.'''
-    total_chars = char_errors = 0
-    total_chars_star = char_errors_star = 0
-    total_words = word_errors = 0
-    total_words_star = word_errors_star = 0
-    n_sent = n_sent_exact = 0
-    class_total: Dict[int, int] = defaultdict(int)
-    class_errors: Dict[int, int] = defaultdict(int)
-    confusion_pairs: Counter = Counter()
-
-    for rec in records:
-        chars, labels = rec["chars"], rec["labels"]
-        preds = predict_fn(chars)
-
-        n_sent += 1
-        sent_ok = True
-        words, cur = [], []
-        for i, c in enumerate(chars):
-            if c == SPACE_CHAR:
-                if cur:
-                    words.append(cur)
-                cur = []
-                continue
-            t, p = labels[i], preds[i]
-            cur.append((p, t))
-            class_total[t] += 1
-            if p != t:
-                class_errors[t] += 1
-                confusion_pairs[(t, p)] += 1
-                sent_ok = False
-        if cur:
-            words.append(cur)
-        if sent_ok:
-            n_sent_exact += 1
-
-        for word in words:
-            if not word:
-                continue
-            n = len(word)
-            errs = [p != t for p, t in word]
-
-            total_chars += n
-            char_errors += sum(errs)
-            total_words += 1
-            word_errors += int(any(errs))
-
-            if n > 1:
-                total_chars_star += n - 1
-                char_errors_star += sum(errs[:-1])
-                total_words_star += 1
-                word_errors_star += int(any(errs[:-1]))
-
-    per_class_der = {c: class_errors[c] / class_total[c]
-                      for c in class_total if class_total[c] > 0}
-
-    return {
-        "DER": char_errors / max(total_chars, 1),
-        "DER_star": char_errors_star / max(total_chars_star, 1),
-        "WER": word_errors / max(total_words, 1),
-        "WER_star": word_errors_star / max(total_words_star, 1),
-        "sentence_exact_match": n_sent_exact / max(n_sent, 1),
-        "per_class_der": per_class_der,
-        "top_confusions": confusion_pairs.most_common(15),
-        "n_chars": total_chars, "n_words": total_words, "n_sentences": n_sent,
-    }
 
 
 # ## 9. Final Local Evaluation on `DEV_TEST`
@@ -196,6 +126,4 @@ def print_eval_report(report: Dict[str, Any], class_names: List[str], name: str 
         for (t, p), n in report["top_confusions"]:
             print(f"  {class_names[t]:18s} -> {class_names[p]:18s} : {n}")
     print()
-
-
 

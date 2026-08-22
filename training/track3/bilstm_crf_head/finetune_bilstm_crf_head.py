@@ -53,6 +53,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 from models.track3.bilstm_crf_head.bilstm_crf_head_model import Track3BiLSTMCRF, majority_vote_decode
 from evaluation.track3.bilstm_crf_head.evaluate_bilstm_crf_head import Evaluator
+from utils.evaluation_metrics import word_level_metrics_from_predict_fn
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 print("Device:", DEVICE)
@@ -643,55 +644,6 @@ def partition_indices_for_length(chars: List[str], tokenizer, max_tokens: int) -
     right_shifted = [(s + mid_pos, e + mid_pos) for s, e in right_ranges]
     return left_ranges + right_shifted
 
-
-
-def word_level_metrics_from_predict_fn(predict_fn, records: List[dict]) -> Dict[str, Any]:
-    total_chars = char_errors = 0
-    total_chars_star = char_errors_star = 0
-    total_words = word_errors = 0
-    total_words_star = word_errors_star = 0
-
-    for rec in records:
-        chars, labels = rec["chars"], rec["labels"]
-        preds = predict_fn(chars)
-
-        words, cur = [], []
-        for i, c in enumerate(chars):
-            if c == SPACE_CHAR:
-                if cur:
-                    words.append(cur)
-                cur = []
-            else:
-                cur.append((preds[i], labels[i]))
-        if cur:
-            words.append(cur)
-
-        for word in words:
-            if not word:
-                continue
-            n = len(word)
-            errs = [p != t for p, t in word]
-
-            total_chars += n
-            char_errors += sum(errs)
-            total_words += 1
-            word_errors += int(any(errs))
-
-            if n > 1:
-                total_chars_star += n - 1
-                char_errors_star += sum(errs[:-1])
-                total_words_star += 1
-                word_errors_star += int(any(errs[:-1]))
-            # single-letter words contribute nothing to the *-word count,
-            # matching the standard literature convention (nothing to exclude)
-
-    return {
-        "DER": char_errors / max(total_chars, 1),
-        "DER_star": char_errors_star / max(total_chars_star, 1),
-        "WER": word_errors / max(total_words, 1),
-        "WER_star": word_errors_star / max(total_words_star, 1),
-        "n_chars": total_chars, "n_words": total_words,
-    }
 
 
 # ## 7. Training Utilities
