@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "v7_campaign_config": "configs/track4/Lyes/campaign.json",
+  "v11_checkpoint": "outputs/context_boundary_v11/01_seed42/best.pt",
+  "output_dir": "outputs/context_boundary_v11/03_equal_group_probe",
+  "system_name": "DziriFinal-v7-plus-ContextLowRankBoundaryCRF-v11-equal5-probe",
+  "artifact_prefix": "DZIRI_FINAL_V7_PLUS_CONTEXT_V11_EQUAL5_PROBE",
+  "baseline_v2_correct": 14977,
+  "minimum_meaningful_gain": 10
+}

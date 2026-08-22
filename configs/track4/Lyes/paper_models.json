@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "output_root": "outputs/paper_metrics_v1",
+  "models": [
+    {
+      "slug": "conv_local_seed42",
+      "name": "ConvLocal Transformer",
+      "checkpoint": "outputs/conv_local_seed42/best.pt"
+    },
+    {
+      "slug": "large_11m_seed42",
+      "name": "DziriFormer-Large-11M",
+      "checkpoint": "outputs/dziriformer_large_11m_seed42/best.pt"
+    },
+    {
+      "slug": "j16_gated_v3_seed42",
+      "name": "DziriFormer-J16-Gated-v3",
+      "checkpoint": "outputs/dziriformer_j16_gated_v3_seed42/best.pt"
+    },
+    {
+      "slug": "gl_v3_seed42",
+      "name": "DziriFormer-GL-v3",
+      "checkpoint": "outputs/dziriformer_gl_v3_seed42/best.pt"
+    },
+    {
+      "slug": "mixed_v3_seed42",
+      "name": "DziriFormer-Mixed-v3",
+      "checkpoint": "outputs/dziriformer_mixed_v3_seed42/best.pt"
+    },
+    {
+      "slug": "hier_v4_seed42",
+      "name": "DziriFormer-Hier-v4",
+      "checkpoint": "outputs/dziriformer_hier_v4_seed42/best.pt"
+    },
+    {
+      "slug": "hier_mixed_v4_seed42",
+      "name": "DziriFormer-HierMixed-v4",
+      "checkpoint": "outputs/pre_hgl_v5/02_hier_mixed/seed_42/best.pt"
+    },
+    {
+      "slug": "direct16_v3_seed42",
+      "name": "DziriFormer-Direct16-v3",
+      "checkpoint": "outputs/pre_hgl_v5/03_direct16/seed_42/best.pt"
+    },
+    {
+      "slug": "gl_curriculum_v4_seed42",
+      "name": "DziriFormer-GL-Curriculum-v4",
+      "checkpoint": "outputs/pre_hgl_v5/04_gl_curriculum/seed_42/best.pt"
+    },
+    {
+      "slug": "hgl_v4_seed42",
+      "name": "DziriFormer-HGL-v4",
+      "checkpoint": "outputs/pre_hgl_v5/07_hgl/seed_42/best.pt"
+    },
+    {
+      "slug": "dual_rope_ce_v6_seed42",
+      "name": "DziriFormer-DualRoPE-CE-v6",
+      "checkpoint": "outputs/dziriformer_dual_rope_ce_v6_seed42/best.pt"
+    },
+    {
+      "slug": "dual_rope_crf_v7_seed42",
+      "name": "DziriFormer-DualRoPE-CRF-v7",
+      "checkpoint": "outputs/dziriformer_dual_rope_crf_v7_seed42/best.pt"
+    },
+    {
+      "slug": "dual_rope_boundary_crf_v8_seed42",
+      "name": "DziriFormer-DualRoPE-BoundaryCRF-v8",
+      "checkpoint": "outputs/dziriformer_dual_rope_boundary_crf_v8_seed42/best.pt"
+    },
+    {
+      "slug": "dual_rope_wordpos_crf_v10_seed42",
+      "name": "DziriFormer-DualRoPE-WordPos-CRF-v10",
+      "checkpoint": "outputs/architecture_v10/02_wordpos_crf/seed_42/best.pt"
+    },
+    {
+      "slug": "dual_rope_factorized_emission_crf_v10_seed42",
+      "name": "DziriFormer-DualRoPE-FactorizedEmission-CRF-v10",
+      "checkpoint": "outputs/architecture_v10/03_factorized_emission_crf/seed_42/best.pt"
+    },
+    {
+      "slug": "dual_rope_low_rank_boundary_crf_v10_seed42",
+      "name": "DziriFormer-DualRoPE-LowRankBoundaryCRF-v10",
+      "checkpoint": "outputs/architecture_v10/04_low_rank_boundary_crf/seed_42/best.pt"
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "output_root": "outputs/architecture_v10",
+  "controls": {
+    "neural_correct": 14816,
+    "minimum_neural_gain": 15,
+    "neural_oov_correct": 2745,
+    "neural_word_correct": 3039,
+    "neural_shadda_accuracy": 0.9832043781845631,
+    "maximum_shadda_regression": 0.001,
+    "neural_tanween_accuracy": 0.9998741900987608,
+    "maximum_tanween_regression": 0.0001,
+    "production_v2_correct": 14977
+  },
+  "experiments": {
+    "wordpos_crf": {
+      "directory": "02_wordpos_crf/seed_42",
+      "checkpoint": "outputs/architecture_v10/02_wordpos_crf/seed_42/best.pt",
+      "system_name": "DziriFormer-DualRoPE-WordPos-CRF-v10-seed42",
+      "artifact_prefix": "DZIRIFORMER_DUALROPE_WORDPOS_CRF_V10_SEED42",
+      "expected_head_mode": "crf",
+      "word_position_features": true,
+      "description": "Controlled Track 4 ablation retaining the full DualRoPE-CRF-v7 encoder, direct 16-class emissions, CRF, data, optimizer, and schedule. It adds learned forward and reverse within-word character-position embeddings plus word-initial and word-final flags at the encoder input."
+    },
+    "factorized_crf": {
+      "directory": "03_factorized_emission_crf/seed_42",
+      "checkpoint": "outputs/architecture_v10/03_factorized_emission_crf/seed_42/best.pt",
+      "system_name": "DziriFormer-DualRoPE-FactorizedEmission-CRF-v10-seed42",
+      "artifact_prefix": "DZIRIFORMER_DUALROPE_FACTORIZED_EMISSION_CRF_V10_SEED42",
+      "expected_head_mode": "factorized_crf",
+      "word_position_features": false,
+      "description": "Controlled Track 4 ablation retaining DualRoPE-CRF-v7 while replacing its unconstrained 16-class emission projection with base-diacritic and Shadda heads whose normalized log-probabilities form the 16 CRF emissions. The CRF NLL remains the only training objective."
+    },
+    "low_rank_boundary_crf": {
+      "directory": "04_low_rank_boundary_crf/seed_42",
+      "checkpoint": "outputs/architecture_v10/04_low_rank_boundary_crf/seed_42/best.pt",
+      "system_name": "DziriFormer-DualRoPE-LowRankBoundaryCRF-v10-seed42",
+      "artifact_prefix": "DZIRIFORMER_DUALROPE_LOWRANK_BOUNDARY_CRF_V10_SEED42",
+      "expected_head_mode": "low_rank_boundary_crf",
+      "word_position_features": false,
+      "description": "Controlled Track 4 ablation retaining DualRoPE-CRF-v7 and adding a rank-2 residual to the shared transition matrix only when entering a new word. This tests boundary conditioning with 64 extra parameters instead of a separate unconstrained 16x16 boundary matrix."
+    }
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "output_root": "outputs/dual_rope_v8",
+  "boundary_crf_checkpoint": "outputs/dziriformer_dual_rope_boundary_crf_v8_seed42/best.pt",
+  "dual_seed_checkpoints": [
+    "outputs/dziriformer_dual_rope_ce_v6_seed42/best.pt",
+    "outputs/dziriformer_dual_rope_ce_v6_seed43/best.pt",
+    "outputs/dziriformer_dual_rope_ce_v6_seed44/best.pt"
+  ],
+  "hgl_checkpoints": [
+    "outputs/pre_hgl_v5/07_hgl/seed_42/best.pt",
+    "outputs/pre_hgl_v5/07_hgl/seed_43/best.pt",
+    "outputs/pre_hgl_v5/07_hgl/seed_44/best.pt"
+  ],
+  "legacy_ensemble_checkpoints": [
+    "outputs/conv_local_seed42/best.pt",
+    "outputs/dziriformer_j16_gated_v3_seed42/best.pt",
+    "outputs/dziriformer_gl_v3_seed42/best.pt",
+    "outputs/dziriformer_mixed_v3_seed42/best.pt",
+    "outputs/dziriformer_hier_v4_seed42/best.pt"
+  ],
+  "acceptance": {
+    "boundary_neural_must_exceed_correct": 14816,
+    "boundary_v2_must_exceed_correct": 14977,
+    "boundary_ensemble_v2_must_exceed_correct": 14977,
+    "crossfit_gate_must_exceed_correct": 14978
+  },
+  "crossfit_gate": {
+    "fold_count": 5,
+    "fold_seed": 842,
+    "lexical_smoothing": 0.01,
+    "decision_threshold": 0.5
+  }
+}
