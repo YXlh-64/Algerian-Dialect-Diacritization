@@ -1,5 +1,15 @@
 # Leaderboard
 
+The Track 2 result is currently a local held-out validation result from
+`canine.ipynb`; it has not been assigned public/private competition scores.
+It is therefore reported separately from the submitted Track 3 runs below.
+
+| Model | Track | Head | Strategy | Dev accuracy / micro-F1 | Dev DER |
+|---|---|---|---|---:|---:|
+| `canine_s_twohead` | track2 | canine_twohead | strategy_a | **0.9406** | **0.0594** |
+
+## Competition submissions
+
 | Rank | Model | Track | Head | Strategy | Public | Private |
 |---|---|---|---|---|---|---|
 | 1 | arabert_v02_09517 | track3 | bilstm_crf_head | strategy_a | 0.94743 | 0.95413 |

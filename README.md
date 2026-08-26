@@ -26,13 +26,32 @@ The project compares four families of architecture for the same char-level diacr
 | Track | Name | Architectures | Status |
 |---|---|---|---|
 | **Track 1** | BiLSTM taggers | BiLSTM-CNN, BiLSTM-CRF, BiLSTM-CNN-CRF (our P2 baseline architecture) — standalone recurrent taggers over character embeddings, no transformer backbone | Planned |
-| **Track 2** | Character-based LLMs | ByT5, CANINE, and similar tokenizer-free / char-level transformer models | Planned |
+| **Track 2** | Character-based LLMs | ByT5, CANINE, and similar tokenizer-free / char-level transformer models | **Implemented for CANINE-S** — see below |
 | **Track 3** | Arabic-pretrained transformers | AraBERT, CAMeLBERT, MARBERT, MARBERTv2, DziriBERT, AlcLaM, and other Arabic BERT-style variants, fine-tuned for token/char classification | **Implemented** — see below |
 | **Track 4** | Transformer-based models (from scratch) | Custom, from-scratch Transformer architectures for char-based tagging: plain char-level Transformer, and Transformer-CNN-CRF variants (i.e. the transformer encoder itself is trained from scratch, not fine-tuned from a pretrained checkpoint) | Planned |
 
 All tracks — implemented and planned — are trained following **Strategy A** first (see table above), before the B/C/D pretraining-transfer variants are attempted.
 
-### Track 3 in detail (the only track with code so far)
+### Track 2 in detail
+
+Track 2 currently contains the CANINE-S experiment from Aya's notebook. The
+selected `canine_twohead` head predicts shadda (2 classes) and vowel (8
+classes) separately, then recombines them into the 16 official labels. The best
+recorded held-out development result is accuracy/micro-F1 **0.9406** and DER
+**0.0594**. This is a local validation score, not a public/private competition
+score; the full selection evidence is in
+[`experiments/track2/canine_twohead/strategy_a_overview.md`](experiments/track2/canine_twohead/strategy_a_overview.md).
+
+```bash
+python run_pipeline.py --track track2 --head-type canine_twohead \
+  --model canine_s_twohead --data-dir /path/to/data
+```
+
+The model uses `google/canine-s`, 512-character inputs, cosine decay with
+warmup, and early stopping. Generated checkpoints and submissions stay under
+`working/` and are not committed to the source-only repository.
+
+### Track 3 in detail
 Track 3 fine-tunes an off-the-shelf Arabic-pretrained transformer encoder and adds one of two **heads** on top (the head is a separate axis from the track/strategy — see the note at the top of `run_pipeline.py`):
 
 | Head type | What it is | Best Strategy-A result (DER) |
@@ -63,7 +82,7 @@ Full ranked results across every model × head combination: [`experiments/leader
 - **Accuracy**: Exact diacritic match accuracy per character position.
 
 ## Repository Structure
-This is the actual current layout (not a plan) — every path shown here exists in the repo today. `track3/` is the only track subfolder that exists so far; Tracks 1, 2, and 4 will each get their own `track1/`, `track2/`, `track4/` subfolder under `configs/`, `models/`, `training/`, `evaluation/`, and `experiments/` once implemented, following the exact same pattern as `track3/`.
+This is the actual current layout (not a plan) — every path shown here exists in the repo today. Tracks 2 and 3 are implemented; Tracks 1 and 4 remain planned.
 
 ```text
 Algerian-Dialect-Diacritization-main/
@@ -82,18 +101,22 @@ Algerian-Dialect-Diacritization-main/
 │
 ├── configs/                        # Per-run YAML configs, one per (track, head_type, model) combo
 │   ├── README.md
+│   ├── track2/canine_twohead/strategy_a_canine_s_twohead_09406.yaml
 │   └── track3/{linear_head,bilstm_crf_head}/strategy_a_<model>_<score>.yaml
 │
 ├── models/                         # Model/architecture implementations
 │   ├── README.md
+│   ├── track2/canine_twohead/canine_twohead_model.py
 │   └── track3/{linear_head,bilstm_crf_head}/*_model.py
 │
 ├── training/                       # Training entry points, auto-discovered by run_pipeline.py
 │   ├── README.md
+│   ├── track2/canine_twohead/finetune_canine_twohead.py
 │   └── track3/{linear_head,bilstm_crf_head}/finetune_<head_type>.py
 │
 ├── evaluation/                     # Metric computation + one Markdown report per finished run
 │   ├── README.md
+│   ├── track2/canine_twohead/evaluate_canine_twohead.py
 │   └── track3/{linear_head,bilstm_crf_head}/
 │       ├── evaluate_<head_type>.py
 │       └── report_strategy_a_<model>_<score>.md
@@ -101,6 +124,7 @@ Algerian-Dialect-Diacritization-main/
 ├── experiments/                    # Strategy-level summaries and the overall leaderboard
 │   ├── README.md
 │   ├── leaderboard.md              # All runs, ranked
+│   ├── track2/canine_twohead/strategy_a_overview.md
 │   └── track3/{linear_head,bilstm_crf_head}/strategy_a_overview.md
 │
 ├── utils/
@@ -162,6 +186,9 @@ python run_pipeline.py --track track3 --head-type linear_head --model marbert
 The single entrypoint for every track/head/model combination is `run_pipeline.py`. On every run it will, in order: (1) detect a GPU via `nvidia-smi` and install the matching CPU/CUDA `torch` build if it isn't already installed correctly, (2) `pip install -r requirements.txt` if requirements changed since the last run, (3) check that `./data` looks valid (skips the Drive fetch since data is already bundled here), then (4) dispatch to `training/<track>/<head_type>/finetune_<head_type>.py` with the model you asked for.
 
 ```bash
+# Track 2, CANINE-S factorized two-head model (best local dev result, DER 0.0594)
+python run_pipeline.py --track track2 --head-type canine_twohead --model canine_s_twohead --data-dir /path/to/data
+
 # Track 3, linear head, MARBERT backbone
 python run_pipeline.py --track track3 --head-type linear_head --model marbert
 
@@ -189,8 +216,10 @@ Anything after these flags that `run_pipeline.py` doesn't recognize is forwarded
 
 **Outputs**: checkpoints and exported artifacts land under `working/checkpoints/` and `working/exports/` (created on first run, gitignored). Training logs print to the console; metric reports are written by the evaluation scripts into `evaluation/<track>/<head_type>/report_*.md` and rolled up into `experiments/leaderboard.md`.
 
-## Adding a New Track (Track 1 / 2 / 4)
-> **⚠️ Temporary section — whoever implements Track 1, 2, or 4 should delete this section once their track lands and its own docs cover it.** This exists so the guidance isn't only living in a PR thread someone has to go dig up.
+## Adding a New Track
+Track 2's CANINE-S implementation is the first example of extending the
+dispatcher with the repository's naming convention. Track 1 and Track 4 can
+follow the same pattern.
 
 Follow the exact folder pattern `track3/` already uses — no changes to `run_pipeline.py` needed for this part, it auto-discovers any `training/<track>/<head_type>/finetune_<head_type>.py`:
 ```
