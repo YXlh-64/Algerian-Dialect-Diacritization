@@ -1,0 +1,24 @@
+# Best reproducible Track 2 run from canine.ipynb.
+# The score below is an honest held-out train/dev result, not a Kaggle
+# public/private leaderboard score.
+track: track2
+head_type: canine_twohead
+strategy: strategy_a
+model: canine_s_twohead
+model_name: google/canine-s
+head: factorized_twohead
+num_labels: 16
+max_length: 512
+per_device_train_batch_size: 16
+per_device_eval_batch_size: 32
+learning_rate: 3.0e-5
+num_train_epochs: 30
+early_stopping_patience: 5
+lr_scheduler_type: cosine
+warmup_ratio: 0.06
+weight_decay: 0.01
+head_dropout: 0.1
+seed: 42
+selection_metric: dev_micro_f1
+observed_dev_accuracy: 0.9406
+observed_dev_der: 0.0594

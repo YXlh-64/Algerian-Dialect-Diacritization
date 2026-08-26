@@ -1,5 +1,17 @@
 # Leaderboard
 
+Track 2 validation results are reported separately from the submitted Track 3
+competition runs below. The standard CANINE-S report also records a private
+leaderboard F1-score of `0.93235`; it is not directly comparable to these dev
+split values.
+
+| Model | Track | Head | Strategy | Dev accuracy / micro-F1 | Dev DER |
+|---|---|---|---|---:|---:|
+| `canine_s` | track2 | canine_s_model | strategy_a | **0.9452** | **0.0548** |
+| `canine_s_twohead` | track2 | canine_twohead | strategy_a | **0.9406** | **0.0594** |
+
+## Competition submissions
+
 | Rank | Model | Track | Head | Strategy | Public | Private |
 |---|---|---|---|---|---|---|
 | 1 | arabert_v02_09517 | track3 | bilstm_crf_head | strategy_a | 0.94743 | 0.95413 |
