@@ -62,7 +62,7 @@ differences are attributable to the architectural change, not model capacity —
 |---|---|---|---|---|---|
 | 128 | 128 | 256 | 2 | 0.3 | 64 |
 
-**Optimization** (shared, `configs/track1/Sou/base.json`): AdamW, lr=1e-3, weight_decay=1e-5,
+**Optimization** (shared, `configs/track1/soundous/base.json`): AdamW, lr=1e-3, weight_decay=1e-5,
 gradient clipping at max-norm 5.0, label smoothing 0.05 (non-CRF variants only), cosine-annealing-
 warm-restarts (T0=8, T_mult=2), early stopping on dev DER with patience 6, max 40 epochs.
 
