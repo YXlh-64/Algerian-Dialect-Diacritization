@@ -1,5 +1,5 @@
 """Full training loops for every  experiment. Each returns (model, history) or (models, history)
-for the ensemble, and is meant to be followed by evaluation.track1.soundousndous.inference.generate_submission
+for the ensemble, and is meant to be followed by evaluation.track1.soundous.inference.generate_submission
 in the calling script (see experiments/track1/soundousndous/run_*.py).
 """
 import os
@@ -236,7 +236,7 @@ def train_swa(vocab_size, num_classes, pad_idx, device, model_kwargs, train_load
 # ==================================================================================================
 # Multi-seed ensembling. Trains N independent seeds (each via run_training, so each gets its
 # own checkpoint/history saved normally); combining/decoding happens at inference time -- see
-# evaluation.track1.soundousndous.inference.generate_submission_ensemble.
+# evaluation.track1.soundous.inference.generate_submission_ensemble.
 # ==================================================================================================
 def train_multi_seed(vocab_size, num_classes, pad_idx, device, model_kwargs, seeds,
                       train_rows, char2idx, label2idx, no_diac_idx, dev_loader, out_dir,

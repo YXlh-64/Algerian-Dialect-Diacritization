@@ -9,10 +9,10 @@ if _REPO_ROOT not in sys.path:
 
 import json
 
-from utils.track1.soundousndous.paths import resolve_paths, print_paths
-from utils.track1.soundousndous.vocab_utils import load_vocab, load_class_labels, NUM_CLASSES, NO_DIAC_IDX
-from utils.track1.soundousndous.data_utils import read_jsonl, make_loader
-from utils.track1.soundousndous.seed_utils import get_device, set_seed, SEED
+from utils.track1.soundous.paths import resolve_paths, print_paths
+from utils.track1.soundous.vocab_utils import load_vocab, load_class_labels, NUM_CLASSES, NO_DIAC_IDX
+from utils.track1.soundous.data_utils import read_jsonl, make_loader
+from utils.track1.soundous.seed_utils import get_device, set_seed, SEED
 
 CONFIGS_DIR = os.path.join(_REPO_ROOT, "configs", "track1", "Sou")
 

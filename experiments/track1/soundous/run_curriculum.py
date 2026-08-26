@@ -13,7 +13,7 @@ if _REPO_ROOT not in sys.path:
 import os
 
 from experiments.track1.soundous._bootstrap import load_everything, load_config
-from training.track1.soundousndous.experiment_trainers import train_curriculum
+from training.track1.soundous.experiment_trainers import train_curriculum
 
 
 def main():

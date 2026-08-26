@@ -6,7 +6,7 @@ import sys
 import pandas as pd
 import torch
 
-from utils.track1.soundousndous.diacritics import clean_and_tokenize, chunk_chars, reconstruct_vocalized
+from utils.track1.soundous.diacritics import clean_and_tokenize, chunk_chars, reconstruct_vocalized
 
 
 @torch.no_grad()

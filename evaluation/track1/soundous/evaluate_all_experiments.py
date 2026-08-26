@@ -32,16 +32,16 @@ if _REPO_ROOT not in sys.path:
 import pandas as pd
 import torch
 
-from utils.track1.soundousndous.paths import resolve_paths, print_paths
-from utils.track1.soundousndous.vocab_utils import load_vocab, load_class_labels, NUM_CLASSES, NO_DIAC_IDX
-from utils.track1.soundousndous.data_utils import read_jsonl, make_loader
-from utils.track1.soundousndous.seed_utils import get_device, set_seed, SEED
-from evaluation.track1.soundousndous.metrics import evaluate_predictions, per_class_report
-from evaluation.track1.soundousndous.inference import (
+from utils.track1.soundous.paths import resolve_paths, print_paths
+from utils.track1.soundous.vocab_utils import load_vocab, load_class_labels, NUM_CLASSES, NO_DIAC_IDX
+from utils.track1.soundous.data_utils import read_jsonl, make_loader
+from utils.track1.soundous.seed_utils import get_device, set_seed, SEED
+from evaluation.track1.soundous.metrics import evaluate_predictions, per_class_report
+from evaluation.track1.soundous.inference import (
     generate_submission, generate_submission_ensemble, generate_submission_tta,
 )
-from models.track1.soundousndous.tagger import DiacritizationTagger
-from models.track1.soundousndous.experimental_taggers import MultiTaskDiacritizationTagger, AttnDiacritizationTagger
+from models.track1.soundous.tagger import DiacritizationTagger
+from models.track1.soundous.experimental_taggers import MultiTaskDiacritizationTagger, AttnDiacritizationTagger
 
 MODEL_CLASS_REGISTRY = {
     "DiacritizationTagger": DiacritizationTagger,
@@ -80,7 +80,7 @@ def evaluate_on_dev(model, dev_loader, device):
 
 @torch.no_grad()
 def evaluate_ensemble_on_dev(models, dev_loader, device):
-    from evaluation.track1.soundousndous.inference import ensemble_decode
+    from evaluation.track1.soundous.inference import ensemble_decode
     dev_preds, dev_golds, dev_chars = [], [], []
     for batch in dev_loader:
         char_ids = batch["char_ids"].to(device)
@@ -97,7 +97,7 @@ def evaluate_ensemble_on_dev(models, dev_loader, device):
 
 @torch.no_grad()
 def evaluate_tta_on_dev(model, dev_rows, char2idx, unk_idx, device, num_classes, max_len=300, num_offsets=3):
-    from evaluation.track1.soundousndous.inference import tta_infer_long_sentence
+    from evaluation.track1.soundous.inference import tta_infer_long_sentence
     dev_preds, dev_golds, dev_chars = [], [], []
     for row in dev_rows:
         chars = row["chars"]
