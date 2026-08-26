@@ -1,11 +1,13 @@
 # Leaderboard
 
-The Track 2 result is currently a local held-out validation result from
-`canine.ipynb`; it has not been assigned public/private competition scores.
-It is therefore reported separately from the submitted Track 3 runs below.
+Track 2 validation results are reported separately from the submitted Track 3
+competition runs below. The standard CANINE-S report also records a private
+leaderboard F1-score of `0.93235`; it is not directly comparable to these dev
+split values.
 
 | Model | Track | Head | Strategy | Dev accuracy / micro-F1 | Dev DER |
 |---|---|---|---|---:|---:|
+| `canine_s` | track2 | canine_s_model | strategy_a | **0.9452** | **0.0548** |
 | `canine_s_twohead` | track2 | canine_twohead | strategy_a | **0.9406** | **0.0594** |
 
 ## Competition submissions

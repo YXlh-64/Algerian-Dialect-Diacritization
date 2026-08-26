@@ -34,13 +34,19 @@ All tracks — implemented and planned — are trained following **Strategy A** 
 
 ### Track 2 in detail
 
-Track 2 currently contains the CANINE-S experiment from Aya's notebook. The
-selected `canine_twohead` head predicts shadda (2 classes) and vowel (8
-classes) separately, then recombines them into the 16 official labels. The best
-recorded held-out development result is accuracy/micro-F1 **0.9406** and DER
-**0.0594**. This is a local validation score, not a public/private competition
-score; the full selection evidence is in
-[`experiments/track2/canine_twohead/strategy_a_overview.md`](experiments/track2/canine_twohead/strategy_a_overview.md).
+Track 2 currently contains two compatible CANINE-S Strategy-A implementations:
+
+- `canine_s_model`: a standard 16-class character-classification baseline. Its
+  recorded validation accuracy/micro-F1 is **0.9452**; see
+  [`experiments/track2/canine_s_model/strategy_a_overview.md`](experiments/track2/canine_s_model/strategy_a_overview.md).
+- `canine_twohead`: Aya's factorized head, which predicts shadda (2 classes)
+  and vowel (8 classes) separately, then recombines them into the 16 official
+  labels. Its best recorded held-out development result is accuracy/micro-F1
+  **0.9406** and DER **0.0594**; see
+  [`experiments/track2/canine_twohead/strategy_a_overview.md`](experiments/track2/canine_twohead/strategy_a_overview.md).
+
+These are local validation results unless explicitly identified as competition
+scores in the corresponding report.
 
 ```bash
 python run_pipeline.py --track track2 --head-type canine_twohead \
@@ -50,6 +56,13 @@ python run_pipeline.py --track track2 --head-type canine_twohead \
 The model uses `google/canine-s`, 512-character inputs, cosine decay with
 warmup, and early stopping. Generated checkpoints and submissions stay under
 `working/` and are not committed to the source-only repository.
+
+The standard classifier is launched with:
+
+```bash
+python run_pipeline.py --track track2 --head-type canine_s_model \
+  --model canine_s --data-dir /path/to/data
+```
 
 ### Track 3 in detail
 Track 3 fine-tunes an off-the-shelf Arabic-pretrained transformer encoder and adds one of two **heads** on top (the head is a separate axis from the track/strategy — see the note at the top of `run_pipeline.py`):
@@ -101,21 +114,25 @@ Algerian-Dialect-Diacritization-main/
 │
 ├── configs/                        # Per-run YAML configs, one per (track, head_type, model) combo
 │   ├── README.md
+│   ├── track2/canine_s_model/canine_s_strategy_a.yaml
 │   ├── track2/canine_twohead/strategy_a_canine_s_twohead_09406.yaml
 │   └── track3/{linear_head,bilstm_crf_head}/strategy_a_<model>_<score>.yaml
 │
 ├── models/                         # Model/architecture implementations
 │   ├── README.md
+│   ├── track2/canine_s_model/canine_s_model.py
 │   ├── track2/canine_twohead/canine_twohead_model.py
 │   └── track3/{linear_head,bilstm_crf_head}/*_model.py
 │
 ├── training/                       # Training entry points, auto-discovered by run_pipeline.py
 │   ├── README.md
+│   ├── track2/canine_s_model/finetune_canine_s_model.py
 │   ├── track2/canine_twohead/finetune_canine_twohead.py
 │   └── track3/{linear_head,bilstm_crf_head}/finetune_<head_type>.py
 │
 ├── evaluation/                     # Metric computation + one Markdown report per finished run
 │   ├── README.md
+│   ├── track2/canine_s_model/evaluate_canine_s.py
 │   ├── track2/canine_twohead/evaluate_canine_twohead.py
 │   └── track3/{linear_head,bilstm_crf_head}/
 │       ├── evaluate_<head_type>.py
@@ -124,6 +141,7 @@ Algerian-Dialect-Diacritization-main/
 ├── experiments/                    # Strategy-level summaries and the overall leaderboard
 │   ├── README.md
 │   ├── leaderboard.md              # All runs, ranked
+│   ├── track2/canine_s_model/strategy_a_overview.md
 │   ├── track2/canine_twohead/strategy_a_overview.md
 │   └── track3/{linear_head,bilstm_crf_head}/strategy_a_overview.md
 │

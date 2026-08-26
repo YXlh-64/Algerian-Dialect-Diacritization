@@ -2,15 +2,24 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
-import numpy as np
-import pandas as pd
 import torch
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, f1_score
-from transformers import AutoTokenizer, CanineForTokenClassification
+from transformers import AutoTokenizer
 
-from utils.track2.canine_s_model.data_utils import CLASS_NAMES, LABEL_TO_MARKS, load_jsonl, resolve_dataset_dir
+REPO_ROOT = Path(__file__).resolve().parents[3]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from models.track2.canine_s_model import load_model
+from utils.track2.canine_s_model.data_utils import (
+    CLASS_NAMES,
+    first_jsonl,
+    load_jsonl,
+    resolve_dataset_dir,
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -25,7 +34,7 @@ def parse_args() -> argparse.Namespace:
 
 def _load_model_and_tokenizer(model_dir: Path):
     tokenizer = AutoTokenizer.from_pretrained(str(model_dir))
-    model = CanineForTokenClassification.from_pretrained(str(model_dir))
+    model = load_model(model_dir=model_dir)
     return tokenizer, model
 
 
@@ -43,7 +52,7 @@ def evaluate(model_dir: str | Path, data_dir: str | Path | None = None, max_seq_
     device = torch.device(device)
     model_dir = Path(model_dir)
     data_dir = resolve_dataset_dir(data_dir)
-    dev_path = data_dir / "dev_data" / "dev_Algerian-DIAC.jsonl"
+    dev_path = first_jsonl(data_dir, "dev_data")
 
     tokenizer, model = _load_model_and_tokenizer(model_dir)
     model.to(device)
@@ -55,9 +64,14 @@ def evaluate(model_dir: str | Path, data_dir: str | Path | None = None, max_seq_
     for record in records:
         sentence = record["input"]
         pred = extract_char_predictions(model, tokenizer, sentence, device, max_seq_len=max_seq_len)
-        gold = record["labels"][: len(pred)]
-        all_true.extend(gold)
-        all_pred.extend(pred)
+        chars = list(record.get("chars", sentence))
+        for char, gold, predicted in zip(chars, record["labels"], pred):
+            if char != " ":
+                all_true.append(gold)
+                all_pred.append(predicted)
+
+    if not all_true:
+        raise ValueError("The development split contains no evaluable character labels")
 
     metrics = {
         "micro_f1": float(f1_score(all_true, all_pred, average="micro")),
