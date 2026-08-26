@@ -1,0 +1,11 @@
+{
+  "_comment": "Shared optimizer/schedule settings for the 3 required base architectures (bilstm_cnn, bilstm_crf, bilstm_cnn_crf).",
+  "epochs": 40,
+  "lr": 0.001,
+  "weight_decay": 1e-05,
+  "grad_clip": 5.0,
+  "label_smoothing": 0.05,
+  "patience": 6,
+  "t0": 8,
+  "t_mult": 2
+}

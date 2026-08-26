@@ -1,0 +1,9 @@
+{
+  "_comment": "self-attention block between BiLSTM and CRF.",
+  "epochs": 40,
+  "num_heads": 4,
+  "lr": 0.001,
+  "patience": 6,
+  "t0": 8,
+  "t_mult": 2
+}

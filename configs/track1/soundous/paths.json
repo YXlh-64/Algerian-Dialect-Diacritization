@@ -1,0 +1,5 @@
+{
+  "_comment": "Edit data_root to point at the 8 dataset files. Leave null to auto-detect (Kaggle input panel, or ./data next to the repo root). output_dir defaults to <repo_root>/outputs if null.",
+  "data_root": null,
+  "output_dir": null
+}

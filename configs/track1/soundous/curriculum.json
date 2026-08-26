@@ -1,0 +1,9 @@
+{
+  "_comment": "length-based curriculum learning (shortest-first warmup).",
+  "epochs": 40,
+  "curriculum_epochs": 5,
+  "lr": 0.001,
+  "patience": 6,
+  "t0": 8,
+  "t_mult": 2
+}

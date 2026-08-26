@@ -1,0 +1,13 @@
+{
+  "_comment": "multi-seed ensemble (averaged emissions, single CRF decode at inference).",
+  "epochs": 40,
+  "seeds": [
+    42,
+    43,
+    44
+  ],
+  "lr": 0.001,
+  "patience": 6,
+  "t0": 8,
+  "t_mult": 2
+}

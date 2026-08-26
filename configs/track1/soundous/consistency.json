@@ -1,0 +1,10 @@
+{
+  "_comment": "Consistency-regularized data augmentation (random char dropout + KL).",
+  "epochs": 40,
+  "kl_weight": 1.0,
+  "dropout_p": 0.08,
+  "lr": 0.001,
+  "patience": 6,
+  "t0": 8,
+  "t_mult": 2
+}

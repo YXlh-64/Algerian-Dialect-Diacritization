@@ -1,0 +1,9 @@
+{
+  "_comment": "Shared model capacity across all base architectures and most experiments, so accuracy differences are attributable to the architectural/experimental change, not a capacity difference.",
+  "emb_dim": 128,
+  "cnn_out_dim": 128,
+  "lstm_hidden": 256,
+  "lstm_layers": 2,
+  "dropout": 0.3,
+  "batch_size": 64
+}

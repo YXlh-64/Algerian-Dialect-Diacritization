@@ -1,0 +1,10 @@
+{
+  "_comment": "focal-style emission reweighting for class imbalance.",
+  "epochs": 40,
+  "gamma": 2.0,
+  "lam": 0.3,
+  "lr": 0.001,
+  "patience": 6,
+  "t0": 8,
+  "t_mult": 2
+}

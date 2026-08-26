@@ -1,0 +1,11 @@
+{
+  "_comment": "Stochastic Weight Averaging over cosine-restart cycle snapshots.",
+  "epochs": 40,
+  "swa_start_cycle": 1,
+  "t0": 8,
+  "t_mult": 2,
+  "lr": 0.001,
+  "weight_decay": 1e-05,
+  "grad_clip": 5.0,
+  "label_smoothing": 0.05
+}

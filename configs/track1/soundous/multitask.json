@@ -1,0 +1,9 @@
+{
+  "_comment": "auxiliary has-diacritic multi-task head.",
+  "epochs": 40,
+  "aux_weight": 0.3,
+  "lr": 0.001,
+  "patience": 6,
+  "t0": 8,
+  "t_mult": 2
+}
