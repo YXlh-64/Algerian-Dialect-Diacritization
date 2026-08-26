@@ -10,14 +10,14 @@ if _REPO_ROOT not in sys.path:
 
 import time
 
-import experiments.track1.soundousndous.run_base_architectures as run_base_architectures
-import experiments.track1.soundousndous.run_focal as run_focal
-import experiments.track1.soundousndous.run_multitask as run_multitask
-import experiments.track1.soundousndous.run_attention as run_attention
-import experiments.track1.soundousndous.run_consistency as run_consistency
-import experiments.track1.soundousndous.run_swa as run_swa
-import experiments.track1.soundousndous.run_ensemble as run_ensemble
-import experiments.track1.soundousndous.run_curriculum as run_curriculum
+import experiments.track1.soundous.run_base_architectures as run_base_architectures
+import experiments.track1.soundous.run_focal as run_focal
+import experiments.track1.soundous.run_multitask as run_multitask
+import experiments.track1.soundous.run_attention as run_attention
+import experiments.track1.soundous.run_consistency as run_consistency
+import experiments.track1.soundous.run_swa as run_swa
+import experiments.track1.soundous.run_ensemble as run_ensemble
+import experiments.track1.soundous.run_curriculum as run_curriculum
 
 RUNS = [
     ("base architectures (bilstm_cnn / bilstm_crf / bilstm_cnn_crf)", run_base_architectures.main),
